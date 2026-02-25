@@ -6,10 +6,6 @@ from typing import List, Optional
 from .base import BaseTracker, OAuthConfig, TokenData, TrackerManga
 
 
-# AniList client ID (public by design, same approach as Mihon/Tachiyomi)
-DEFAULT_CLIENT_ID = "36426"
-
-
 class AniListTracker(BaseTracker):
     """AniList OAuth and GraphQL API integration."""
     
@@ -20,13 +16,17 @@ class AniListTracker(BaseTracker):
     BASE_URL = "https://anilist.co/api/v2/"
     
     def __init__(self):
-        self.client_id = os.environ.get("ANILIST_CLIENT_ID", DEFAULT_CLIENT_ID)
+        self.client_id = os.environ.get("ANILIST_CLIENT_ID")
         self.client_secret = os.environ.get("ANILIST_CLIENT_SECRET")
         self.redirect_uri = os.environ.get("ANILIST_REDIRECT_URI", "http://localhost:3000/tracker/callback/anilist")
     
+    def is_configured(self) -> bool:
+        """Check if the tracker has required configuration."""
+        return self.client_id is not None
+    
     def get_oauth_config(self) -> OAuthConfig:
         return OAuthConfig(
-            client_id=self.client_id,
+            client_id=self.client_id or "",
             client_secret=self.client_secret,
             redirect_uri=self.redirect_uri,
             auth_url=f"{self.BASE_URL}oauth/authorize",
