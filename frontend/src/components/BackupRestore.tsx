@@ -23,30 +23,35 @@ import {
   Check as CheckIcon,
   AlertCircle as ErrorIcon,
 } from 'lucide-react';
-import { useIndexedDB } from '../hooks/useIndexedDB';
+import { downloadBackupFile, readBackupFile, importBackup } from '../db/backupService';
+import type { RestoreResult, RestoreStats } from '../db/backupService';
 
-const EMPTY_IMPORT = {
-  manga: 0, chapters: 0, library: 0, history: 0, categories: 0, readingProgress: 0
+const EMPTY_STATS: RestoreStats = {
+  manga: { imported: 0, skipped: 0 },
+  chapters: { imported: 0, skipped: 0 },
+  library_entries: { imported: 0, skipped: 0 },
+  history: { imported: 0, skipped: 0 },
+  categories: { imported: 0, skipped: 0 },
+  manga_categories: { imported: 0, skipped: 0 },
+  reading_progress: { imported: 0, updated: 0, skipped: 0 },
+  tracker_mappings: { imported: 0, updated: 0, skipped: 0 },
 };
 
 export default function BackupRestore() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{
-    success: boolean;
-    imported: typeof EMPTY_IMPORT;
-    errors: string[];
-  } | null>(null);
+  const [importResult, setImportResult] = useState<RestoreResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { exportBackup, importBackup } = useIndexedDB();
 
   const handleExport = async () => {
     try {
-      await exportBackup();
-    } catch (error) {
-      console.error('Export failed:', error);
+      setError(null);
+      await downloadBackupFile();
+    } catch (err) {
+      console.error('Export failed:', err);
+      setError(err instanceof Error ? err.message : 'Export failed');
     }
   };
 
@@ -62,13 +67,17 @@ export default function BackupRestore() {
     if (!selectedFile) return;
 
     setImporting(true);
+    setError(null);
     try {
-      setImportResult(await importBackup(selectedFile));
-    } catch (error) {
+      const backupData = await readBackupFile(selectedFile);
+      const result = await importBackup(backupData);
+      setImportResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed');
       setImportResult({
         success: false,
-        imported: EMPTY_IMPORT,
-        errors: [error instanceof Error ? error.message : 'Import failed'],
+        message: err instanceof Error ? err.message : 'Import failed',
+        stats: EMPTY_STATS,
       });
     } finally {
       setImporting(false);
@@ -79,9 +88,31 @@ export default function BackupRestore() {
     setImportDialogOpen(false);
     setSelectedFile(null);
     setImportResult(null);
+    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const formatStats = (stats: RestoreStats) => {
+    const items = [
+      { label: 'Manga', ...stats.manga },
+      { label: 'Chapters', ...stats.chapters },
+      { label: 'Library', ...stats.library_entries },
+      { label: 'History', ...stats.history },
+      { label: 'Categories', ...stats.categories },
+      { label: 'Progress', ...stats.reading_progress },
+      { label: 'Tracker Mappings', ...stats.tracker_mappings },
+    ];
+    
+    return items.map(item => (
+      <Chip 
+        key={item.label}
+        label={`${item.label}: ${item.imported} imported`} 
+        size="small" 
+        sx={{ mr: 1, mb: 1 }}
+      />
+    ));
   };
 
   return (
@@ -92,6 +123,12 @@ export default function BackupRestore() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Export your library, reading history, and settings to a JSON file for backup or migration.
       </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
         <Button
@@ -152,6 +189,12 @@ export default function BackupRestore() {
               </ListItemIcon>
               <ListItemText primary="Reading progress (current page)" />
             </ListItem>
+            <ListItem>
+              <ListItemIcon sx={{ minWidth: 32 }}>
+                <CheckIcon size={16} />
+              </ListItemIcon>
+              <ListItemText primary="Tracker mappings" />
+            </ListItem>
           </List>
         </CardContent>
       </Card>
@@ -169,42 +212,20 @@ export default function BackupRestore() {
             <Box>
               {importResult.success ? (
                 <Alert severity="success" sx={{ mb: 2 }}>
-                  Import completed successfully!
+                  {importResult.message}
                 </Alert>
               ) : (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                  Import failed with errors
+                  {importResult.message}
                 </Alert>
               )}
               
               <Typography variant="subtitle2" gutterBottom>
-                Imported items:
+                Import Statistics:
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                <Chip label={`Manga: ${importResult.imported.manga || 0}`} size="small" />
-                <Chip label={`Chapters: ${importResult.imported.chapters || 0}`} size="small" />
-                <Chip label={`Library: ${importResult.imported.library || 0}`} size="small" />
-                <Chip label={`History: ${importResult.imported.history || 0}`} size="small" />
-                <Chip label={`Categories: ${importResult.imported.categories || 0}`} size="small" />
+              <Box sx={{ mb: 2 }}>
+                {formatStats(importResult.stats)}
               </Box>
-              
-              {importResult.errors.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" color="error">
-                    Errors:
-                  </Typography>
-                  <List dense>
-                    {importResult.errors.map((error, i) => (
-                      <ListItem key={i}>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <ErrorIcon size={16} color="error" />
-                        </ListItemIcon>
-                        <ListItemText primary={error} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
             </Box>
           ) : (
             <Box>

@@ -24,6 +24,7 @@ from app.api import (
     downloads_router,
     updates_router,
     settings_router,
+    backup_router,
 )
 from app.api.trackers import router as trackers_router
 from app.services.download_manager import download_manager
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(reader_router, prefix="/api/v1/reader", tags=["reader"])
     app.include_router(scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
     app.include_router(trackers_router, prefix="/api/v1", tags=["trackers"])
+    app.include_router(backup_router, prefix="/api/v1", tags=["backup"])
 
     @app.on_event("startup")
     async def startup_event():
