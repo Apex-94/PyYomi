@@ -15,7 +15,12 @@ dist-ssr
 frontend/tsconfig.tsbuildinfo
 
 # Environment
-.env*
+.env
+.env.local
+.env.*.local
+backend/.env
+!.env.example
+!backend/.env.example
 
 # Backend runtime data
 backend/library.json
@@ -26,6 +31,12 @@ backend/__pycache__/
 
 # Plans and local docs drafts
 plans/
+
+# AI assistant memory document (auto-generated context)
+MEMORY.md
+
+# Kilo Code settings (local only)
+.kilocode/
 
 # Electron build outputs
 electron/release-electron/

@@ -4,10 +4,14 @@ import sys
 import argparse
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.extensions.loader import initialize_extensions
+
+# Load environment variables from .env file
+load_dotenv()
 # from app.scheduler import scheduler_service
 
 from app.api import (
@@ -21,6 +25,7 @@ from app.api import (
     updates_router,
     settings_router,
 )
+from app.api.trackers import router as trackers_router
 from app.services.download_manager import download_manager
 
 # Global data directory that can be set via command line or environment
@@ -141,6 +146,7 @@ def create_app() -> FastAPI:
     app.include_router(library_router, prefix="/api/v1/library", tags=["library"])
     app.include_router(reader_router, prefix="/api/v1/reader", tags=["reader"])
     app.include_router(scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
+    app.include_router(trackers_router, prefix="/api/v1", tags=["trackers"])
 
     @app.on_event("startup")
     async def startup_event():
