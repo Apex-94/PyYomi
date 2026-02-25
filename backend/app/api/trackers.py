@@ -144,6 +144,7 @@ class ImplicitGrantRequest(BaseModel):
 @router.get("/")
 async def list_trackers():
     """List all available trackers"""
+    from ..trackers.anilist import DEFAULT_CLIENT_ID as ANILIST_DEFAULT_ID
     from ..trackers.myanimelist import DEFAULT_CLIENT_ID as MAL_DEFAULT_ID
     
     # Check if client ID is configured (either via env var or default)
@@ -152,6 +153,7 @@ async def list_trackers():
         return bool(env_id or default_id)
     
     default_ids = {
+        "anilist": ANILIST_DEFAULT_ID,
         "mal": MAL_DEFAULT_ID,
     }
     
