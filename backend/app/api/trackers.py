@@ -144,11 +144,24 @@ class ImplicitGrantRequest(BaseModel):
 @router.get("/")
 async def list_trackers():
     """List all available trackers"""
+    from ..trackers.anilist import DEFAULT_CLIENT_ID as ANILIST_DEFAULT_ID
+    from ..trackers.myanimelist import DEFAULT_CLIENT_ID as MAL_DEFAULT_ID
+    
+    # Check if client ID is configured (either via env var or default)
+    def is_oauth_configured(tracker_name: str, default_id: str = None) -> bool:
+        env_id = os.environ.get(f"{tracker_name.upper()}_CLIENT_ID")
+        return bool(env_id or default_id)
+    
+    default_ids = {
+        "anilist": ANILIST_DEFAULT_ID,
+        "mal": MAL_DEFAULT_ID,
+    }
+    
     trackers = [
         {
             "name": name,
             "display_name": tracker.display_name,
-            "oauth_configured": bool(os.environ.get(f"{name.upper()}_CLIENT_ID"))
+            "oauth_configured": is_oauth_configured(name, default_ids.get(name))
         }
         for name, tracker in TrackerRegistry.list_all().items()
     ]
