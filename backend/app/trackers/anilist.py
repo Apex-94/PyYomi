@@ -18,7 +18,7 @@ class AniListTracker(BaseTracker):
     def __init__(self):
         self.client_id = os.environ.get("ANILIST_CLIENT_ID")
         self.client_secret = os.environ.get("ANILIST_CLIENT_SECRET")
-        self.redirect_uri = os.environ.get("ANILIST_REDIRECT_URI", "http://localhost:5173/tracker/callback/anilist")
+        self.redirect_uri = os.environ.get("ANILIST_REDIRECT_URI", "http://localhost:3000/tracker/callback/anilist")
     
     def get_oauth_config(self) -> OAuthConfig:
         return OAuthConfig(
