@@ -6,7 +6,7 @@ import TrackerSettings from '../../components/TrackerSettings';
 import BackupRestore from '../../components/BackupRestore';
 
 const isAbsolutePath = (value: string): boolean =>
-  value.trim() && (/^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('/'));
+  value.trim().length > 0 && (/^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('/'));
 
 export default function SettingsPage() {
   const { data, isLoading, refetch } = useQuery({
