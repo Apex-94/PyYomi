@@ -40,14 +40,15 @@ class AniListTracker(BaseTracker):
         AniList implicit grant doesn't require client secret.
         The token is returned directly in the URL fragment.
         """
+        import urllib.parse
         config = self.get_oauth_config()
-        return (
-            f"{config.auth_url}?"
-            f"client_id={config.client_id}&"
-            f"redirect_uri={config.redirect_uri}&"
-            f"response_type=token&"
-            f"state={state}"
-        )
+        params = {
+            "client_id": config.client_id,
+            "redirect_uri": config.redirect_uri,
+            "response_type": "token",
+            "state": state,
+        }
+        return f"{config.auth_url}?{urllib.parse.urlencode(params)}"
     
     async def exchange_code(self, code: str, code_verifier: Optional[str] = None) -> TokenData:
         """Exchange authorization code for access token."""
