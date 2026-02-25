@@ -21,6 +21,43 @@ export default function TrackerCallbackPage() {
         return;
       }
 
+      // Check for implicit grant flow (AniList) - token in URL fragment
+      if (trackerName === 'anilist') {
+        const fragment = window.location.hash.substring(1);
+        const fragmentParams = new URLSearchParams(fragment);
+        const accessToken = fragmentParams.get('access_token');
+        const state = fragmentParams.get('state');
+        const expiresIn = fragmentParams.get('expires_in');
+
+        if (!accessToken || !state) {
+          setStatus('error');
+          setError('Missing access token in callback');
+          return;
+        }
+
+        try {
+          // Use implicit grant callback endpoint
+          const response = await api.post(`/trackers/${trackerName}/callback/implicit`, {
+            access_token: accessToken,
+            state: state,
+            expires_in: expiresIn ? parseInt(expiresIn) : 31536000,
+          });
+          setStatus('success');
+
+          window.opener?.postMessage(
+            { type: 'TRACKER_CONNECTED', tracker: trackerName, username: response.data.username },
+            window.location.origin
+          );
+
+          setTimeout(() => window.close(), 2000);
+        } catch (err: any) {
+          setStatus('error');
+          setError(err.response?.data?.detail || 'Failed to connect tracker');
+        }
+        return;
+      }
+
+      // Authorization code flow (MAL, etc.)
       const code = searchParams.get('code');
       const state = searchParams.get('state');
 

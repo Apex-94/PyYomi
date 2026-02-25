@@ -35,13 +35,17 @@ class AniListTracker(BaseTracker):
         )
     
     async def get_auth_url(self, state: str) -> str:
-        """Generate authorization URL."""
+        """Generate authorization URL using implicit grant flow.
+        
+        AniList implicit grant doesn't require client secret.
+        The token is returned directly in the URL fragment.
+        """
         config = self.get_oauth_config()
         return (
             f"{config.auth_url}?"
             f"client_id={config.client_id}&"
             f"redirect_uri={config.redirect_uri}&"
-            f"response_type=code&"
+            f"response_type=token&"
             f"state={state}"
         )
     
