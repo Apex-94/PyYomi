@@ -1,4 +1,5 @@
 import { db, LocalManga, LocalChapter, LocalLibraryEntry, LocalHistory, LocalCategory, LocalReadingProgress } from './database';
+import { fullSyncFromBackend } from './syncService';
 
 export interface BackupData {
   version: number;
@@ -27,6 +28,14 @@ export const exportData = async (options: {
 } = {}): Promise<BackupData> => {
   const { includeHistory = true, includeReadingProgress = true } = options;
   
+  // Sync from backend first to ensure we have the latest data
+  try {
+    await fullSyncFromBackend();
+  } catch (error) {
+    console.warn('Failed to sync from backend before export, exporting local data only:', error);
+  }
+  
+  // Get all data from IndexedDB and filter out deleted items
   const [manga, chapters, library, categories, history, readingProgress] = await Promise.all([
     db.manga.filter(m => !m.isDeleted).toArray(),
     db.chapters.filter(c => !c.isDeleted).toArray(),
