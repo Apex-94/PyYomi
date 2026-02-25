@@ -37,16 +37,17 @@ class AniListTracker(BaseTracker):
     async def get_auth_url(self, state: str) -> str:
         """Generate authorization URL using implicit grant flow.
         
-        AniList implicit grant doesn't require client secret.
+        AniList implicit grant only requires client_id and response_type.
+        The redirect_uri is configured in the AniList app settings.
         The token is returned directly in the URL fragment.
         """
         import urllib.parse
         config = self.get_oauth_config()
+        # AniList implicit grant only needs client_id and response_type
+        # redirect_uri is configured in the AniList app settings
         params = {
             "client_id": config.client_id,
-            "redirect_uri": config.redirect_uri,
             "response_type": "token",
-            "state": state,
         }
         return f"{config.auth_url}?{urllib.parse.urlencode(params)}"
     
