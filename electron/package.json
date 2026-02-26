@@ -1,6 +1,6 @@
 {
   "name": "pyyomi-electron",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Manga Reader Desktop App - Electron Edition",
   "main": "main.js",
   "scripts": {
@@ -11,7 +11,12 @@
     "build:linux": "electron-builder --linux",
     "build:all": "electron-builder -wml"
   },
-  "keywords": ["manga", "reader", "electron", "desktop"],
+  "keywords": [
+    "manga",
+    "reader",
+    "electron",
+    "desktop"
+  ],
   "author": "Pyyomi",
   "license": "MIT",
   "devDependencies": {
