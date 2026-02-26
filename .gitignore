@@ -28,6 +28,9 @@ backend/data/
 backend/dist/
 backend/build/
 backend/__pycache__/
+backend/.encryption_key
+data/
+.tmp/
 
 # Plans and local docs drafts
 plans/

@@ -141,6 +141,7 @@ export interface TrackerStatus {
   connected: boolean;
   username: string | null;
   user_id: string | null;
+  score_format?: string;
 }
 
 export interface TrackerCredential {
@@ -172,6 +173,24 @@ export interface TrackerManga {
   status: string;
   user_status?: string;
   user_chapters?: number;
+}
+
+export interface FuzzyDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
+export interface TrackerEntry {
+  manga_id: string;
+  progress: number | null;
+  status: string | null;
+  score: number | null;
+  is_private: boolean | null;
+  started_at: FuzzyDate | null;
+  completed_at: FuzzyDate | null;
+  media_chapters: number | null;
+  updated_at: string | null;
 }
 
 export interface SyncQueueItem {

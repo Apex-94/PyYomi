@@ -11,6 +11,8 @@ import {
     Tracker,
     TrackerStatus,
     TrackerManga,
+    TrackerEntry,
+    FuzzyDate,
     TrackerMapping,
     SyncQueueItem,
 } from '../types';
@@ -299,11 +301,21 @@ export async function searchTrackerManga(trackerName: string, query: string): Pr
 export async function syncToTracker(
     trackerName: string,
     mangaId: number,
-    chapterNumber: number
+    chapterNumber: number,
+    options?: {
+        status?: string;
+        score?: number;
+        is_private?: boolean;
+        started_at?: FuzzyDate | null;
+        completed_at?: FuzzyDate | null;
+        auto_status?: boolean;
+        total_chapters?: number | null;
+    }
 ): Promise<{ success: boolean; queued?: boolean; queue_item_id?: number; detail?: string }> {
     const response = await api.post(`/trackers/${trackerName}/sync`, {
         manga_id: mangaId,
         chapter_number: chapterNumber,
+        ...options,
     });
     return response.data;
 }
@@ -344,5 +356,30 @@ export async function getSyncQueue(trackerName: string): Promise<{ queue: SyncQu
 
 export async function processSyncQueue(trackerName: string): Promise<{ processed: number }> {
     const response = await api.post(`/trackers/${trackerName}/sync-queue/process`);
+    return response.data;
+}
+
+export async function getTrackerEntry(trackerName: string, mangaId: number): Promise<{ entry: TrackerEntry | null }> {
+    const response = await api.get(`/trackers/${trackerName}/entry`, {
+        params: { manga_id: mangaId },
+    });
+    return response.data;
+}
+
+export async function updateTrackerEntry(
+    trackerName: string,
+    payload: {
+        manga_id: number;
+        progress?: number;
+        status?: string;
+        score?: number;
+        is_private?: boolean;
+        started_at?: FuzzyDate | null;
+        completed_at?: FuzzyDate | null;
+        auto_status?: boolean;
+        total_chapters?: number | null;
+    },
+): Promise<{ success: boolean }> {
+    const response = await api.put(`/trackers/${trackerName}/entry`, payload);
     return response.data;
 }

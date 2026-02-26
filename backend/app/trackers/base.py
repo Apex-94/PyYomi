@@ -35,6 +35,39 @@ class TokenData:
     token_type: str = "Bearer"
 
 
+@dataclass
+class FuzzyDate:
+    """AniList-style fuzzy date fields."""
+    year: Optional[int] = None
+    month: Optional[int] = None
+    day: Optional[int] = None
+
+
+@dataclass
+class TrackerEntry:
+    """Detailed tracker entry for a mapped manga."""
+    manga_id: str
+    progress: Optional[int] = None
+    status: Optional[str] = None
+    score: Optional[float] = None
+    is_private: Optional[bool] = None
+    started_at: Optional[FuzzyDate] = None
+    completed_at: Optional[FuzzyDate] = None
+    media_chapters: Optional[int] = None
+    updated_at: Optional[str] = None
+
+
+@dataclass
+class TrackerEntryUpdate:
+    """Mutable entry payload for tracker updates."""
+    progress: Optional[int] = None
+    status: Optional[str] = None
+    score: Optional[float] = None
+    is_private: Optional[bool] = None
+    started_at: Optional[FuzzyDate] = None
+    completed_at: Optional[FuzzyDate] = None
+
+
 class BaseTracker(ABC):
     """Abstract base class for tracker integrations"""
     
@@ -96,3 +129,20 @@ class BaseTracker(ABC):
     @abstractmethod
     async def get_user_list(self, access_token: str) -> List[TrackerManga]:
         """Get user's manga list from tracker"""
+
+    async def get_entry(self, access_token: str, manga_id: str) -> Optional[TrackerEntry]:
+        """Get detailed entry for a mapped manga."""
+        raise NotImplementedError("Tracker does not support reading detailed entries")
+
+    async def update_entry(
+        self,
+        access_token: str,
+        manga_id: str,
+        update: TrackerEntryUpdate,
+    ) -> bool:
+        """Update a detailed tracker entry."""
+        raise NotImplementedError("Tracker does not support updating detailed entries")
+
+    async def get_score_format(self, access_token: str) -> Optional[str]:
+        """Return tracker score format identifier if available."""
+        return None

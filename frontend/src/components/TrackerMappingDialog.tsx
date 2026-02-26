@@ -16,6 +16,13 @@ import {
   Chip,
   IconButton,
   Typography,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import { Search, Link as LinkIcon, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,6 +33,8 @@ import {
   getTrackerMappings,
   createTrackerMapping,
   deleteTrackerMapping,
+  getTrackerEntry,
+  updateTrackerEntry,
 } from '../lib/api';
 import type { TrackerManga, Tracker } from '../types';
 
@@ -42,6 +51,18 @@ export default function TrackerMappingDialog({ open, onClose, mangaId, mangaTitl
   const [searchResults, setSearchResults] = useState<TrackerManga[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [entryEditorTracker, setEntryEditorTracker] = useState<string | null>(null);
+  const [entryLoading, setEntryLoading] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [entryMediaChapters, setEntryMediaChapters] = useState<number | null>(null);
+  const [entryForm, setEntryForm] = useState({
+    progress: '',
+    status: '',
+    score: '',
+    isPrivate: false,
+    startedAt: '',
+    completedAt: '',
+  });
 
   const queryClient = useQueryClient();
 
@@ -110,11 +131,103 @@ export default function TrackerMappingDialog({ open, onClose, mangaId, mangaTitl
     },
   });
 
+  const updateEntryMutation = useMutation({
+    mutationFn: (payload: {
+      trackerName: string;
+      mangaId: number;
+      progress?: number;
+      status?: string;
+      score?: number;
+      is_private?: boolean;
+      started_at?: { year: number | null; month: number | null; day: number | null } | null;
+      completed_at?: { year: number | null; month: number | null; day: number | null } | null;
+      auto_status?: boolean;
+      total_chapters?: number | null;
+    }) => updateTrackerEntry(payload.trackerName, {
+      manga_id: payload.mangaId,
+      progress: payload.progress,
+      status: payload.status,
+      score: payload.score,
+      is_private: payload.is_private,
+      started_at: payload.started_at,
+      completed_at: payload.completed_at,
+      auto_status: payload.auto_status,
+      total_chapters: payload.total_chapters,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracker-mappings'] });
+      queryClient.invalidateQueries({ queryKey: ['tracker-mappings-all'] });
+      setEntryError(null);
+    },
+    onError: () => {
+      setEntryError('Failed to update tracker entry.');
+    },
+  });
+
   const resetSearchState = () => {
     setSearchResults([]);
     setSelectedTracker(null);
     setSearchQuery('');
     setSearchError(null);
+    setEntryEditorTracker(null);
+    setEntryError(null);
+    setEntryMediaChapters(null);
+  };
+
+  const parseDateInput = (value: string): { year: number | null; month: number | null; day: number | null } | null => {
+    if (!value) return null;
+    const [year, month, day] = value.split('-').map((part) => Number(part));
+    if (!year || !month || !day) return null;
+    return { year, month, day };
+  };
+
+  const formatDateInput = (date?: { year: number | null; month: number | null; day: number | null } | null): string => {
+    if (!date?.year || !date?.month || !date?.day) return '';
+    const mm = `${date.month}`.padStart(2, '0');
+    const dd = `${date.day}`.padStart(2, '0');
+    return `${date.year}-${mm}-${dd}`;
+  };
+
+  const openEntryEditor = async (trackerName: string) => {
+    if (entryEditorTracker === trackerName) {
+      setEntryEditorTracker(null);
+      return;
+    }
+    setEntryLoading(true);
+    setEntryError(null);
+    setEntryEditorTracker(trackerName);
+    try {
+      const response = await getTrackerEntry(trackerName, mangaId);
+      const entry = response.entry;
+      setEntryMediaChapters(entry?.media_chapters ?? null);
+      setEntryForm({
+        progress: entry?.progress != null ? String(entry.progress) : '',
+        status: entry?.status ?? '',
+        score: entry?.score != null ? String(entry.score) : '',
+        isPrivate: entry?.is_private ?? false,
+        startedAt: formatDateInput(entry?.started_at),
+        completedAt: formatDateInput(entry?.completed_at),
+      });
+    } catch {
+      setEntryError('Failed to load tracker entry.');
+    } finally {
+      setEntryLoading(false);
+    }
+  };
+
+  const saveEntry = (trackerName: string) => {
+    updateEntryMutation.mutate({
+      trackerName,
+      mangaId,
+      progress: entryForm.progress !== '' ? Number(entryForm.progress) : undefined,
+      status: entryForm.status || undefined,
+      score: entryForm.score !== '' ? Number(entryForm.score) : undefined,
+      is_private: entryForm.isPrivate,
+      started_at: parseDateInput(entryForm.startedAt),
+      completed_at: parseDateInput(entryForm.completedAt),
+      auto_status: true,
+      total_chapters: entryMediaChapters,
+    });
   };
 
   const handleSearch = async (trackerName: string) => {
@@ -173,6 +286,7 @@ export default function TrackerMappingDialog({ open, onClose, mangaId, mangaTitl
           {connectedTrackers.map((tracker: Tracker) => {
             const mapping = mappings?.[tracker.name];
             const isExpanded = selectedTracker === tracker.name && !mapping;
+            const isEntryEditorOpen = entryEditorTracker === tracker.name && !!mapping;
 
             return (
               <Box key={tracker.name}>
@@ -188,6 +302,16 @@ export default function TrackerMappingDialog({ open, onClose, mangaId, mangaTitl
                     mapping ? (
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                         <Chip icon={<LinkIcon size={16} />} label="Linked" color="success" size="small" />
+                        {tracker.name === 'anilist' && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => openEntryEditor(tracker.name)}
+                            disabled={entryLoading}
+                          >
+                            {isEntryEditorOpen ? 'Close' : 'Edit Entry'}
+                          </Button>
+                        )}
                         <Button
                           size="small"
                           variant="outlined"
@@ -280,6 +404,81 @@ export default function TrackerMappingDialog({ open, onClose, mangaId, mangaTitl
                         Click search to find manga
                       </Typography>
                     )}
+                  </Box>
+                )}
+
+                {isEntryEditorOpen && (
+                  <Box sx={{ ml: 2, mr: 2, mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>AniList Entry</Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    {entryError && <Alert severity="error" sx={{ mb: 2 }}>{entryError}</Alert>}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                      <TextField
+                        label="Progress"
+                        size="small"
+                        type="number"
+                        value={entryForm.progress}
+                        onChange={(e) => setEntryForm((prev) => ({ ...prev, progress: e.target.value }))}
+                      />
+                      <TextField
+                        label="Score (0-100)"
+                        size="small"
+                        type="number"
+                        value={entryForm.score}
+                        onChange={(e) => setEntryForm((prev) => ({ ...prev, score: e.target.value }))}
+                      />
+                      <FormControl size="small">
+                        <InputLabel id={`status-label-${tracker.name}`}>Status</InputLabel>
+                        <Select
+                          labelId={`status-label-${tracker.name}`}
+                          label="Status"
+                          value={entryForm.status}
+                          onChange={(e) => setEntryForm((prev) => ({ ...prev, status: e.target.value }))}
+                        >
+                          <MenuItem value=""><em>Auto</em></MenuItem>
+                          <MenuItem value="current">Current</MenuItem>
+                          <MenuItem value="planning">Planning</MenuItem>
+                          <MenuItem value="completed">Completed</MenuItem>
+                          <MenuItem value="paused">Paused</MenuItem>
+                          <MenuItem value="dropped">Dropped</MenuItem>
+                          <MenuItem value="repeating">Repeating</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={entryForm.isPrivate}
+                            onChange={(e) => setEntryForm((prev) => ({ ...prev, isPrivate: e.target.checked }))}
+                          />
+                        }
+                        label="Private"
+                      />
+                      <TextField
+                        label="Started At"
+                        size="small"
+                        type="date"
+                        value={entryForm.startedAt}
+                        onChange={(e) => setEntryForm((prev) => ({ ...prev, startedAt: e.target.value }))}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                      <TextField
+                        label="Completed At"
+                        size="small"
+                        type="date"
+                        value={entryForm.completedAt}
+                        onChange={(e) => setEntryForm((prev) => ({ ...prev, completedAt: e.target.value }))}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                      <Button
+                        variant="contained"
+                        onClick={() => saveEntry(tracker.name)}
+                        disabled={entryLoading || updateEntryMutation.isPending}
+                      >
+                        Save Entry
+                      </Button>
+                    </Box>
                   </Box>
                 )}
               </Box>

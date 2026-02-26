@@ -4,7 +4,15 @@ import os
 import urllib.parse
 from typing import List, Optional
 
-from .base import BaseTracker, OAuthConfig, TokenData, TrackerManga
+from .base import (
+    BaseTracker,
+    OAuthConfig,
+    TokenData,
+    TrackerManga,
+    TrackerEntry,
+    TrackerEntryUpdate,
+    FuzzyDate,
+)
 
 
 # Hardcoded AniList client ID
@@ -36,6 +44,49 @@ class AniListTracker(BaseTracker):
         flow = os.environ.get("ANILIST_OAUTH_FLOW", "implicit").strip().lower()
         # Default to implicit so AniList works without .env secrets.
         self.oauth_flow = flow if flow in {"code", "implicit"} else "implicit"
+
+    @staticmethod
+    def _normalize_status(status: Optional[str]) -> Optional[str]:
+        if not status:
+            return None
+        normalized = status.strip().lower()
+        mapping = {
+            "reading": "CURRENT",
+            "current": "CURRENT",
+            "planned": "PLANNING",
+            "planning": "PLANNING",
+            "plan_to_read": "PLANNING",
+            "completed": "COMPLETED",
+            "on_hold": "PAUSED",
+            "paused": "PAUSED",
+            "dropped": "DROPPED",
+            "repeating": "REPEATING",
+            "rereading": "REPEATING",
+        }
+        return mapping.get(normalized, status.strip().upper())
+
+    @staticmethod
+    def _to_fuzzy_date_payload(value: Optional[FuzzyDate]) -> Optional[dict]:
+        if value is None:
+            return None
+        payload = {
+            "year": value.year,
+            "month": value.month,
+            "day": value.day,
+        }
+        if payload["year"] is None and payload["month"] is None and payload["day"] is None:
+            return None
+        return payload
+
+    @staticmethod
+    def _from_fuzzy_date(value: Optional[dict]) -> Optional[FuzzyDate]:
+        if not value:
+            return None
+        return FuzzyDate(
+            year=value.get("year"),
+            month=value.get("month"),
+            day=value.get("day"),
+        )
     
     def resolve_redirect_uri(self, frontend_origin: Optional[str] = None) -> str:
         if self.redirect_uri_override:
@@ -166,24 +217,11 @@ class AniListTracker(BaseTracker):
     
     async def update_progress(self, access_token: str, manga_id: str, chapters_read: int) -> bool:
         """Update reading progress on AniList."""
-        mutation = """
-        mutation ($mediaId: Int, $progress: Int) {
-            SaveMediaListEntry(mediaId: $mediaId, progress: $progress) {
-                id
-            }
-        }
-        """
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.API_URL,
-                json={"query": mutation, "variables": {"mediaId": int(manga_id), "progress": chapters_read}},
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            if response.status_code != 200:
-                error_data = response.json() if response.content else {}
-                error_msg = error_data.get("errors", [{}])[0].get("message", "Unknown error")
-                raise Exception(f"AniList API error ({response.status_code}): {error_msg}")
-            return True
+        return await self.update_entry(
+            access_token,
+            manga_id,
+            TrackerEntryUpdate(progress=chapters_read),
+        )
     
     async def get_user_list(self, access_token: str) -> List[TrackerManga]:
         """Get user's manga list from AniList."""
@@ -222,3 +260,121 @@ class AniListTracker(BaseTracker):
                 )
                 for item in items
             ]
+
+    async def get_score_format(self, access_token: str) -> Optional[str]:
+        """Return AniList viewer score format (POINT_100/POINT_10/etc)."""
+        query = """
+        query {
+            Viewer {
+                mediaListOptions {
+                    scoreFormat
+                }
+            }
+        }
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.API_URL,
+                json={"query": query},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            response.raise_for_status()
+            return response.json().get("data", {}).get("Viewer", {}).get("mediaListOptions", {}).get("scoreFormat")
+
+    async def get_entry(self, access_token: str, manga_id: str) -> Optional[TrackerEntry]:
+        """Get detailed AniList list entry for a manga."""
+        query = """
+        query ($mediaId: Int) {
+            Media(id: $mediaId, type: MANGA) {
+                chapters
+                mediaListEntry {
+                    progress
+                    status
+                    score(format: POINT_100)
+                    private
+                    startedAt { year month day }
+                    completedAt { year month day }
+                    updatedAt
+                }
+            }
+        }
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.API_URL,
+                json={"query": query, "variables": {"mediaId": int(manga_id)}},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            response.raise_for_status()
+            media = response.json().get("data", {}).get("Media")
+            if not media:
+                return None
+            entry = media.get("mediaListEntry")
+            if not entry:
+                return None
+            return TrackerEntry(
+                manga_id=str(manga_id),
+                progress=entry.get("progress"),
+                status=(entry.get("status") or "").lower() if entry.get("status") else None,
+                score=entry.get("score"),
+                is_private=entry.get("private"),
+                started_at=self._from_fuzzy_date(entry.get("startedAt")),
+                completed_at=self._from_fuzzy_date(entry.get("completedAt")),
+                media_chapters=media.get("chapters"),
+                updated_at=str(entry.get("updatedAt")) if entry.get("updatedAt") is not None else None,
+            )
+
+    async def update_entry(self, access_token: str, manga_id: str, update: TrackerEntryUpdate) -> bool:
+        """Update AniList entry via SaveMediaListEntry mutation."""
+        mutation = """
+        mutation (
+          $mediaId: Int
+          $progress: Int
+          $status: MediaListStatus
+          $scoreRaw: Int
+          $private: Boolean
+          $startedAt: FuzzyDateInput
+          $completedAt: FuzzyDateInput
+        ) {
+          SaveMediaListEntry(
+            mediaId: $mediaId
+            progress: $progress
+            status: $status
+            scoreRaw: $scoreRaw
+            private: $private
+            startedAt: $startedAt
+            completedAt: $completedAt
+          ) {
+            id
+          }
+        }
+        """
+        variables = {"mediaId": int(manga_id)}
+        if update.progress is not None:
+            variables["progress"] = int(update.progress)
+        normalized_status = self._normalize_status(update.status)
+        if normalized_status:
+            variables["status"] = normalized_status
+        if update.score is not None:
+            # AniList scoreRaw is 0..100 regardless of display format.
+            variables["scoreRaw"] = max(0, min(100, int(round(float(update.score)))))
+        if update.is_private is not None:
+            variables["private"] = bool(update.is_private)
+        started_payload = self._to_fuzzy_date_payload(update.started_at)
+        if started_payload:
+            variables["startedAt"] = started_payload
+        completed_payload = self._to_fuzzy_date_payload(update.completed_at)
+        if completed_payload:
+            variables["completedAt"] = completed_payload
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.API_URL,
+                json={"query": mutation, "variables": variables},
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if response.status_code != 200:
+                error_data = response.json() if response.content else {}
+                error_msg = error_data.get("errors", [{}])[0].get("message", "Unknown error")
+                raise Exception(f"AniList API error ({response.status_code}): {error_msg}")
+            return True

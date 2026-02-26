@@ -11,11 +11,13 @@ import base64
 import hashlib
 import hmac
 from urllib.parse import urlparse
+from cryptography.fernet import InvalidToken
 
 from ..db.database import get_session
 from ..db.models import TrackerCredential, TrackerMapping, SyncQueue
 from ..services.encryption import encryption_service
 from ..trackers import TrackerRegistry
+from ..trackers.base import FuzzyDate, TrackerEntryUpdate
 
 router = APIRouter(prefix="/trackers", tags=["trackers"])
 
@@ -152,7 +154,13 @@ async def get_valid_access_token(
     credential: TrackerCredential,
 ) -> str:
     """Return a valid access token, refreshing when supported."""
-    access_token = encryption_service.decrypt(credential.access_token)
+    try:
+        access_token = encryption_service.decrypt(credential.access_token)
+    except InvalidToken:
+        raise HTTPException(
+            status_code=401,
+            detail="Stored tracker credentials are invalid. Please disconnect and reconnect the tracker.",
+        )
     if not is_token_expired(credential):
         return access_token
 
@@ -215,14 +223,53 @@ def queue_sync_update(
     return queue_item
 
 
+def _derive_anilist_status(chapter_number: int, total_chapters: Optional[int] = None) -> str:
+    """Derive AniList status from progress using Mihon-like defaults."""
+    if chapter_number <= 0:
+        return "planning"
+    if total_chapters and total_chapters > 0 and chapter_number >= total_chapters:
+        return "completed"
+    return "current"
+
+
 # =============================================================================
 # Request Models
 # =============================================================================
+
+class FuzzyDateModel(BaseModel):
+    """Fuzzy date payload for tracker entry fields."""
+    year: Optional[int] = None
+    month: Optional[int] = None
+    day: Optional[int] = None
+
+    def to_tracker_date(self) -> FuzzyDate:
+        return FuzzyDate(year=self.year, month=self.month, day=self.day)
+
+
+class TrackerEntryUpdateRequest(BaseModel):
+    """Request model for explicit tracker entry updates."""
+    manga_id: int
+    progress: Optional[int] = None
+    status: Optional[str] = None
+    score: Optional[float] = None
+    is_private: Optional[bool] = None
+    started_at: Optional[FuzzyDateModel] = None
+    completed_at: Optional[FuzzyDateModel] = None
+    auto_status: bool = True
+    total_chapters: Optional[int] = None
+
 
 class SyncRequest(BaseModel):
     """Request model for syncing progress"""
     manga_id: int
     chapter_number: int
+    status: Optional[str] = None
+    score: Optional[float] = None
+    is_private: Optional[bool] = None
+    started_at: Optional[FuzzyDateModel] = None
+    completed_at: Optional[FuzzyDateModel] = None
+    auto_status: bool = True
+    total_chapters: Optional[int] = None
 
 
 class ImplicitGrantRequest(BaseModel):
@@ -278,14 +325,24 @@ async def get_tracker_status(
     session: Session = Depends(get_session)
 ):
     """Get connection status for a tracker"""
-    get_tracker_or_404(tracker_name)
+    tracker = get_tracker_or_404(tracker_name)
     credential = get_credential(session, tracker_name)
-    
-    return {
+
+    result = {
         "connected": credential is not None,
         "username": credential.username if credential else None,
         "user_id": credential.user_id if credential else None
     }
+    if credential:
+        try:
+            access_token = await get_valid_access_token(session, tracker, credential)
+            score_format = await tracker.get_score_format(access_token)
+            if score_format:
+                result["score_format"] = score_format
+        except Exception:
+            # Status should still be returned even if optional metadata fetch fails.
+            pass
+    return result
 
 
 @router.get("/{tracker_name}/connect")
@@ -453,6 +510,76 @@ async def search_tracker_manga(
     return {"results": results}
 
 
+@router.get("/{tracker_name}/entry")
+async def get_tracker_entry(
+    tracker_name: str,
+    manga_id: int = Query(...),
+    session: Session = Depends(get_session),
+):
+    """Get detailed tracker entry for a mapped manga."""
+    tracker = get_tracker_or_404(tracker_name)
+    credential = get_credential_or_401(session, tracker_name)
+    mapping = get_mapping(session, manga_id, tracker_name)
+
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Manga not mapped to tracker")
+
+    access_token = await get_valid_access_token(session, tracker, credential)
+    try:
+        entry = await tracker.get_entry(access_token, mapping.tracker_manga_id)
+    except NotImplementedError:
+        raise HTTPException(status_code=400, detail=f"{tracker_name} does not support entry details")
+
+    if entry is None:
+        return {"entry": None}
+    return {"entry": entry}
+
+
+@router.put("/{tracker_name}/entry")
+async def update_tracker_entry(
+    tracker_name: str,
+    request: TrackerEntryUpdateRequest,
+    session: Session = Depends(get_session),
+):
+    """Update detailed tracker entry fields for a mapped manga."""
+    tracker = get_tracker_or_404(tracker_name)
+    credential = get_credential_or_401(session, tracker_name)
+    mapping = get_mapping(session, request.manga_id, tracker_name)
+
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Manga not mapped to tracker")
+
+    access_token = await get_valid_access_token(session, tracker, credential)
+    status_value = request.status
+    if request.auto_status and not status_value and tracker_name == "anilist":
+        progress = request.progress or 0
+        status_value = _derive_anilist_status(progress, request.total_chapters)
+
+    update_payload = TrackerEntryUpdate(
+        progress=request.progress,
+        status=status_value,
+        score=request.score,
+        is_private=request.is_private,
+        started_at=request.started_at.to_tracker_date() if request.started_at else None,
+        completed_at=request.completed_at.to_tracker_date() if request.completed_at else None,
+    )
+    try:
+        success = await tracker.update_entry(access_token, mapping.tracker_manga_id, update_payload)
+    except NotImplementedError:
+        raise HTTPException(status_code=400, detail=f"{tracker_name} does not support entry updates")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if success and request.progress is not None:
+        mapping.last_synced_chapter = request.progress
+        mapping.last_synced_at = datetime.utcnow()
+        mapping.sync_status = "synced"
+        session.add(mapping)
+        session.commit()
+
+    return {"success": bool(success)}
+
+
 @router.post("/{tracker_name}/sync")
 async def sync_to_tracker(
     tracker_name: str,
@@ -470,7 +597,24 @@ async def sync_to_tracker(
     access_token = await get_valid_access_token(session, tracker, credential)
 
     try:
-        success = await tracker.update_progress(access_token, mapping.tracker_manga_id, request.chapter_number)
+        if tracker_name == "anilist":
+            status_value = request.status
+            if request.auto_status and not status_value:
+                status_value = _derive_anilist_status(request.chapter_number, request.total_chapters)
+            success = await tracker.update_entry(
+                access_token,
+                mapping.tracker_manga_id,
+                TrackerEntryUpdate(
+                    progress=request.chapter_number,
+                    status=status_value,
+                    score=request.score,
+                    is_private=request.is_private,
+                    started_at=request.started_at.to_tracker_date() if request.started_at else None,
+                    completed_at=request.completed_at.to_tracker_date() if request.completed_at else None,
+                ),
+            )
+        else:
+            success = await tracker.update_progress(access_token, mapping.tracker_manga_id, request.chapter_number)
     except Exception as e:
         queue_item = queue_sync_update(
             session,
