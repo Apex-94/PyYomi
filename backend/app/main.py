@@ -26,6 +26,7 @@ from app.api import (
     updates_router,
     settings_router,
     backup_router,
+    anilist_meta_router,
 )
 from app.api.trackers import router as trackers_router
 from app.services.download_manager import download_manager
@@ -150,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
     app.include_router(trackers_router, prefix="/api/v1", tags=["trackers"])
     app.include_router(backup_router, prefix="/api/v1", tags=["backup"])
+    app.include_router(anilist_meta_router, prefix="/api/v1", tags=["anilist"])
 
     @app.on_event("startup")
     async def startup_event():

@@ -267,6 +267,31 @@ export const updateAppSetting = async (key: string, value: unknown) => {
     await api.put('/settings', { key, value });
 };
 
+export interface AniListMetadata {
+    query: string;
+    found: boolean;
+    anilist_id?: number;
+    title?: string;
+    status?: string;
+    chapters?: number;
+    average_score?: number;
+    rating_10?: number;
+    author?: string;
+    artist?: string;
+    description?: string;
+    cover_url?: string;
+}
+
+export async function getAniListMetadata(title: string): Promise<AniListMetadata> {
+    const response = await api.post('/anilist/meta', { title });
+    return response.data.metadata as AniListMetadata;
+}
+
+export async function getAniListMetadataBatch(titles: string[]): Promise<AniListMetadata[]> {
+    const response = await api.post('/anilist/meta/batch', { titles });
+    return (response.data.items || []) as AniListMetadata[];
+}
+
 // Tracker API functions
 export async function getTrackers(): Promise<{ trackers: Tracker[] }> {
     const response = await api.get('/trackers');

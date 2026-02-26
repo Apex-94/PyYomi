@@ -4,11 +4,28 @@ from app.db.database import get_session
 from app.db.models import Category, MangaCategory, Manga
 
 router = APIRouter(tags=["Categories"])
+DEFAULT_CATEGORY_NAMES = ["Reading", "Completed", "Plan to Read", "On Hold", "Dropped"]
+
+
+def _ensure_default_categories(session: Session) -> None:
+    existing = session.exec(select(Category)).all()
+    existing_lower = {cat.name.strip().lower() for cat in existing}
+
+    created_any = False
+    for default_name in DEFAULT_CATEGORY_NAMES:
+        if default_name.lower() in existing_lower:
+            continue
+        session.add(Category(name=default_name))
+        created_any = True
+
+    if created_any:
+        session.commit()
 
 
 @router.get("/")
 async def get_all_categories(session: Session = Depends(get_session)):
     """Get all categories"""
+    _ensure_default_categories(session)
     categories = session.exec(select(Category)).all()
     return {"categories": categories}
 

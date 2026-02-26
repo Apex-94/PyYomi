@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
-import { api, getProxyUrl, queueDownload, addToLibrary, deleteDownloadFiles, getDownloads, getTrackerMappings, syncToTracker, getChaptersReadStatus, markChapterReadByManga, markChapterUnreadByUrl } from "../../lib/api";
+import { api, getAniListMetadata, getProxyUrl, queueDownload, addToLibrary, deleteDownloadFiles, getDownloads, getTrackerMappings, syncToTracker, getChaptersReadStatus, markChapterReadByManga, markChapterUnreadByUrl } from "../../lib/api";
 import { summarizeManga } from "../../services/geminiService";
 import { Sparkles, BookOpen, Clock, PenTool, User, Check, Plus, MoreVertical, RefreshCw as SyncIcon, Link as LinkIcon, CheckCircle } from "lucide-react";
 import { LibraryAddResponse, Manga } from "../../types";
@@ -128,6 +128,12 @@ export default function MangaPage() {
             return resp.data.chapters as Chapter[];
         },
         enabled: !!url,
+    });
+    const { data: aniMeta } = useQuery({
+        queryKey: ["anilist-meta-single", details?.title],
+        queryFn: () => getAniListMetadata(details!.title),
+        enabled: !!details?.title,
+        staleTime: 1000 * 60 * 30,
     });
 
     // Query for read status of chapters
@@ -309,6 +315,11 @@ export default function MangaPage() {
     if (!url) return <Box sx={{ p: 3 }}>No manga URL provided.</Box>;
     if (loadingDetails) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress color="primary" /></Box>;
     if (!details) return <Box sx={{ p: 3 }}>Failed to load details.</Box>;
+    const displayAuthor = aniMeta?.author || details.author || "Unknown";
+    const displayArtist = aniMeta?.artist || details.artist || "Unknown";
+    const displayStatus = (aniMeta?.status as MangaDetails["status"]) || details.status;
+    const displayDescription = aniMeta?.description || details.description;
+    const displayRating = aniMeta?.rating_10;
 
     const inLibrary = isInLibrary(url);
 
@@ -480,7 +491,7 @@ export default function MangaPage() {
                                     Author:
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: { light: '#6b7280', dark: '#d1d5db' } }}>
-                                    {details.author || "Unknown"}
+                                    {displayAuthor}
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -491,7 +502,15 @@ export default function MangaPage() {
                                     Artist:
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: { light: '#6b7280', dark: '#d1d5db' } }}>
-                                    {details.artist || "Unknown"}
+                                    {displayArtist}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', color: { light: '#111827', dark: '#f3f4f6' } }}>
+                                    Rating:
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: { light: '#6b7280', dark: '#d1d5db' } }}>
+                                    {typeof displayRating === "number" ? `${displayRating.toFixed(1)}/10` : "N/A"}
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -502,13 +521,13 @@ export default function MangaPage() {
                                     Status:
                                 </Typography>
                                 <Chip
-                                    label={details.status}
+                                    label={displayStatus}
                                     size="small"
                                     sx={{
-                                        bgcolor: details.status === 'Ongoing'
+                                        bgcolor: displayStatus === 'Ongoing'
                                             ? { light: '#d1fae5', dark: 'rgba(34, 197, 94, 0.2)' }
                                             : { light: '#dbeafe', dark: 'rgba(59, 130, 246, 0.2)' },
-                                        color: details.status === 'Ongoing'
+                                        color: displayStatus === 'Ongoing'
                                             ? { light: '#065f46', dark: '#34d399' }
                                             : { light: '#1e40af', dark: '#60a5fa' },
                                         fontWeight: 'bold',
@@ -607,7 +626,7 @@ export default function MangaPage() {
                                 pb: 3,
                                 fontSize: { xs: '0.875rem', md: '1rem' },
                             }}>
-                                {details.description}
+                                {displayDescription}
                             </Typography>
                         </Paper>
                     </Grid>
