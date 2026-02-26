@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
-import { api, getProxyUrl, queueDownload, addToLibrary, deleteDownloadFiles, getDownloads } from "../../lib/api";
+import { api, getProxyUrl, queueDownload, addToLibrary, deleteDownloadFiles, getDownloads, getTrackerMappings, syncToTracker, getChaptersReadStatus, markChapterReadByManga, markChapterUnreadByUrl } from "../../lib/api";
 import { summarizeManga } from "../../services/geminiService";
-import { Sparkles, BookOpen, Clock, PenTool, User, Check, Plus, MoreVertical } from "lucide-react";
+import { Sparkles, BookOpen, Clock, PenTool, User, Check, Plus, MoreVertical, RefreshCw as SyncIcon, Link as LinkIcon, CheckCircle } from "lucide-react";
 import { LibraryAddResponse, Manga } from "../../types";
+import TrackerMappingDialog from "../../components/TrackerMappingDialog";
 import {
   Box,
   Typography,
@@ -20,6 +21,8 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { useLibraryState } from "../../hooks/useLibraryState";
 import LibraryFeedbackSnackbar from "../../components/LibraryFeedbackSnackbar";
@@ -43,6 +46,37 @@ interface Chapter {
     chapter_number: number | null;
 }
 
+// Helper to format chapter title in a consistent way
+const CHAPTER_INDICATOR_PATTERN = /^(C\.?|Ch\.?\s*|Chapter\s*)\d+(?:\.\d+)?$/i;
+
+const formatChapterTitle = (title: string, chapterNumber: number | null): string => {
+    // Check if title already starts with "Chapter X" pattern
+    const existingMatch = title.match(/^Chapter\s*(\d+(?:\.\d+)?)(?::\s*(.+))?$/i);
+    if (existingMatch) {
+        const [, num, name] = existingMatch;
+        return name ? `Chapter ${num}: ${name.trim()}` : `Chapter ${num}`;
+    }
+    
+    // Check for format: "15 C.15" or "15 The Beginning"
+    const titleMatch = title.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+    const displayNumber = chapterNumber ?? (titleMatch ? parseFloat(titleMatch[1]) : null);
+    
+    if (titleMatch) {
+        const name = titleMatch[2].trim();
+        const isChapterIndicator = CHAPTER_INDICATOR_PATTERN.test(name);
+        return isChapterIndicator || !name 
+            ? `Chapter ${displayNumber ?? titleMatch[1]}`
+            : `Chapter ${displayNumber ?? titleMatch[1]}: ${name}`;
+    }
+    
+    // Use chapter number with title if available
+    if (chapterNumber) {
+        return CHAPTER_INDICATOR_PATTERN.test(title) ? `Chapter ${chapterNumber}` : `Chapter ${chapterNumber}: ${title}`;
+    }
+    
+    return title;
+};
+
 export default function MangaPage() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -58,6 +92,13 @@ export default function MangaPage() {
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [feedbackActions, setFeedbackActions] = useState<Array<{ label: string; onClick: () => void }>>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [syncMenuAnchor, setSyncMenuAnchor] = useState<null | HTMLElement>(null);
+    const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+    
+    // Context menu state for chapter read/unread marking
+    const [contextMenuAnchor, setContextMenuAnchor] = useState<null | HTMLElement>(null);
+    const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+    
     const queueMutation = useMutation({
         mutationFn: queueDownload,
         onSuccess: async () => {
@@ -65,6 +106,9 @@ export default function MangaPage() {
         },
     });
     const { isInLibrary, getLibraryManga, applyAddResult, removeByUrl } = useLibraryState();
+
+    // Get library manga early - needed by hooks below
+    const libraryManga = url ? getLibraryManga(url) : null;
 
     const { data: details, isLoading: loadingDetails } = useQuery({
         queryKey: ["manga", url, source],
@@ -84,6 +128,16 @@ export default function MangaPage() {
             return resp.data.chapters as Chapter[];
         },
         enabled: !!url,
+    });
+
+    // Query for read status of chapters
+    const { data: readStatusData, refetch: refetchReadStatus } = useQuery({
+        queryKey: ["read-status", url],
+        queryFn: async () => {
+            if (!url) return { manga_id: null, chapters: [] };
+            return getChaptersReadStatus(url);
+        },
+        enabled: !!url && !!libraryManga?.id,
     });
 
     const { data: downloads = [] } = useQuery({
@@ -138,10 +192,109 @@ export default function MangaPage() {
         },
     });
 
+    // Tracker sync mutation
+    const syncMutation = useMutation({
+        mutationFn: async ({ trackerName, chapterNumber }: { trackerName: string; chapterNumber: number }) => {
+            if (!libraryManga?.id) throw new Error('Manga not in library');
+            return syncToTracker(trackerName, libraryManga.id, chapterNumber);
+        },
+        onSuccess: () => {
+            setFeedbackMessage('Synced to tracker');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+        },
+        onError: () => {
+            setFeedbackMessage('Failed to sync to tracker');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+        },
+    });
+
+    // Mutation to mark chapter as read
+    const markReadMutation = useMutation({
+        mutationFn: async ({ chapterUrl, chapterNumber, chapterTitle }: { chapterUrl: string; chapterNumber: number; chapterTitle?: string }) => {
+            if (!libraryManga?.id) throw new Error('Manga not in library');
+            return markChapterReadByManga(libraryManga.id, chapterNumber, chapterUrl, chapterTitle);
+        },
+        onSuccess: async () => {
+            await refetchReadStatus();
+            setFeedbackMessage('Chapter marked as read');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+            setContextMenuAnchor(null);
+        },
+        onError: () => {
+            setFeedbackMessage('Failed to mark chapter as read');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+        },
+    });
+
+    // Mutation to mark chapter as unread
+    const markUnreadMutation = useMutation({
+        mutationFn: async (chapterUrl: string) => {
+            return markChapterUnreadByUrl(chapterUrl);
+        },
+        onSuccess: async () => {
+            await refetchReadStatus();
+            setFeedbackMessage('Chapter marked as unread');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+            setContextMenuAnchor(null);
+        },
+        onError: () => {
+            setFeedbackMessage('Failed to mark chapter as unread');
+            setFeedbackActions([]);
+            setFeedbackOpen(true);
+        },
+    });
+
+    // Fetch tracker mappings for this manga if in library
+    const { data: trackerMappingsData } = useQuery({
+        queryKey: ['tracker-mappings', 'mal'],
+        queryFn: () => getTrackerMappings('mal'),
+        enabled: !!libraryManga?.id,
+    });
+
+    const trackerMappings = trackerMappingsData?.mappings?.filter(m => m.manga_id === libraryManga?.id) || [];
+
+    // Helper to check if a chapter is read
+    const isChapterRead = (chapterUrl: string): boolean => {
+        return readStatusData?.chapters?.some(ch => ch.url === chapterUrl && ch.is_read) ?? false;
+    };
+
+    // Context menu handlers
+    const handleContextMenu = (event: React.MouseEvent, chapter: Chapter) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setContextMenuAnchor(event.currentTarget as HTMLElement);
+        setSelectedChapter(chapter);
+    };
+
+    const handleContextMenuClose = () => {
+        setContextMenuAnchor(null);
+        setSelectedChapter(null);
+    };
+
+    const handleMarkAsRead = () => {
+        if (selectedChapter && libraryManga?.id) {
+            markReadMutation.mutate({
+                chapterUrl: selectedChapter.url,
+                chapterNumber: selectedChapter.chapter_number || 0,
+                chapterTitle: selectedChapter.title,
+            });
+        }
+    };
+
+    const handleMarkAsUnread = () => {
+        if (selectedChapter) {
+            markUnreadMutation.mutate(selectedChapter.url);
+        }
+    };
+
     const handleGenerateSummary = async () => {
         if (!details) return;
         setGeneratingSummary(true);
-        // Cast details to Manga type for service
         const mangaObj: Manga = {
             ...details,
             altTitle: "",
@@ -149,17 +302,15 @@ export default function MangaPage() {
             rating: 0,
             chapters: []
         };
-        const summary = await summarizeManga(mangaObj);
-        setAiSummary(summary);
+        setAiSummary(await summarizeManga(mangaObj));
         setGeneratingSummary(false);
-    }
+    };
 
     if (!url) return <Box sx={{ p: 3 }}>No manga URL provided.</Box>;
     if (loadingDetails) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress color="primary" /></Box>;
     if (!details) return <Box sx={{ p: 3 }}>Failed to load details.</Box>;
 
     const inLibrary = isInLibrary(url);
-    const libraryManga = getLibraryManga(url);
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -264,10 +415,38 @@ export default function MangaPage() {
                                             <ListItemIcon><MoreVertical size={16} /></ListItemIcon>
                                             <ListItemText>Set categories</ListItemText>
                                         </MenuItem>
+                                        <MenuItem onClick={() => { setMenuAnchor(null); setMappingDialogOpen(true); }}>
+                                            <ListItemIcon><LinkIcon size={16} /></ListItemIcon>
+                                            <ListItemText>Link to Tracker</ListItemText>
+                                        </MenuItem>
+                                        {trackerMappings.length > 0 && (
+                                            <MenuItem onClick={(e) => { setMenuAnchor(null); setSyncMenuAnchor(e.currentTarget); }}>
+                                                <ListItemIcon><SyncIcon size={16} /></ListItemIcon>
+                                                <ListItemText>Sync to Tracker</ListItemText>
+                                            </MenuItem>
+                                        )}
                                         <MenuItem onClick={() => { setMenuAnchor(null); removeMutation.mutate(); }} sx={{ color: 'error.main' }}>
                                             <ListItemIcon><MoreVertical size={16} /></ListItemIcon>
                                             <ListItemText>Remove</ListItemText>
                                         </MenuItem>
+                                    </Menu>
+                                    <Menu anchorEl={syncMenuAnchor} open={Boolean(syncMenuAnchor)} onClose={() => setSyncMenuAnchor(null)}>
+                                        {trackerMappings.map((mapping) => (
+                                            <MenuItem 
+                                                key={mapping.id}
+                                                onClick={() => { 
+                                                    setSyncMenuAnchor(null);
+                                                    // Get the latest chapter number from chapters
+                                                    const latestChapter = chapters?.[0]?.chapter_number || 0;
+                                                    if (latestChapter > 0) {
+                                                        syncMutation.mutate({ trackerName: mapping.tracker_name, chapterNumber: latestChapter });
+                                                    }
+                                                }}
+                                            >
+                                                <ListItemIcon><SyncIcon size={16} /></ListItemIcon>
+                                                <ListItemText>Sync to {mapping.tracker_name.toUpperCase()}</ListItemText>
+                                            </MenuItem>
+                                        ))}
                                     </Menu>
                                 </>
                             )}
@@ -462,57 +641,64 @@ export default function MangaPage() {
                     ) : (
                         <Grid container spacing={2}>
                             {chapters && chapters.length > 0 ? (
-                                chapters.slice().reverse().map((ch) => (
+                                chapters.slice().reverse().map((ch) => {
+                                    const chapterDownload = downloads.find((d) => d.chapter_url === ch.url);
+                                    const hasDownloadedFiles = !!chapterDownload?.file_path && chapterDownload.status === 'completed';
+                                    const isRead = isChapterRead(ch.url);
+                                    return (
                                     <Grid key={ch.url} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-                                        {(() => {
-                                            const chapterDownload = downloads.find((d) => d.chapter_url === ch.url);
-                                            const hasDownloadedFiles = !!chapterDownload?.file_path && chapterDownload.status === 'completed';
-                                            return (
-                                        <Paper sx={{
-                                            p: 2,
-                                            bgcolor: { light: 'white', dark: '#1f2937' },
-                                            border: 1,
-                                            borderColor: { light: '#e5e7eb', dark: '#374151' },
-                                            borderRadius: 2,
-                                            transition: 'all 0.2s ease',
-                                            '&:hover': {
-                                                bgcolor: { light: 'rgba(79, 70, 229, 0.05)', dark: 'rgba(31, 41, 55, 0.8)' },
-                                                borderColor: 'rgba(79, 70, 229, 0.3)',
-                                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-                                            }
-                                        }}>
+                                        <Paper 
+                                            sx={{
+                                                p: 2,
+                                                bgcolor: { light: 'white', dark: '#1f2937' },
+                                                border: 1,
+                                                borderColor: isRead 
+                                                    ? 'rgba(34, 197, 94, 0.3)' 
+                                                    : { light: '#e5e7eb', dark: '#374151' },
+                                                borderRadius: 2,
+                                                transition: 'all 0.2s ease',
+                                                opacity: isRead ? 0.7 : 1,
+                                                '&:hover': {
+                                                    bgcolor: { light: 'rgba(79, 70, 229, 0.05)', dark: 'rgba(31, 41, 55, 0.8)' },
+                                                    borderColor: 'rgba(79, 70, 229, 0.3)',
+                                                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+                                                }
+                                            }}
+                                            onContextMenu={(e) => handleContextMenu(e, ch)}
+                                        >
                                             <Link
-                                                to={`/reader?chapter_url=${encodeURIComponent(ch.url)}&source=${encodeURIComponent(source || '')}`}
+                                                to={`/reader?chapter_url=${encodeURIComponent(ch.url)}&source=${encodeURIComponent(source || '')}${url ? `&manga_url=${encodeURIComponent(url)}` : ''}`}
                                                 style={{ textDecoration: 'none', color: 'inherit' }}
                                             >
                                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                    <Box sx={{
-                                                        width: 32,
-                                                        height: 32,
-                                                        bgcolor: { light: '#f3f4f6', dark: '#374151' },
-                                                        borderRadius: '50%',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        mr: 2,
-                                                    }}>
-                                                        <Typography variant="caption" sx={{
-                                                            fontWeight: 'bold',
-                                                            color: { light: '#6b7280', dark: '#9ca3af' },
-                                                        }}>
-                                                            {ch.chapter_number || '-'}
-                                                        </Typography>
-                                                    </Box>
+                                                    {isRead && (
+                                                        <CheckCircle size={16} style={{ color: '#22c55e', marginRight: 8 }} />
+                                                    )}
                                                     <Typography variant="body2" sx={{
                                                         fontWeight: 'medium',
-                                                        color: { light: '#111827', dark: '#f3f4f6' },
+                                                        color: isRead 
+                                                            ? { light: '#6b7280', dark: '#9ca3af' }
+                                                            : { light: '#111827', dark: '#f3f4f6' },
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis',
                                                         whiteSpace: 'nowrap',
                                                         flexGrow: 1,
                                                     }}>
-                                                        {ch.title}
+                                                        {formatChapterTitle(ch.title, ch.chapter_number)}
                                                     </Typography>
+                                                    {isRead && (
+                                                        <Chip 
+                                                            label="Read" 
+                                                            size="small" 
+                                                            sx={{
+                                                                ml: 1,
+                                                                bgcolor: 'rgba(34, 197, 94, 0.2)',
+                                                                color: '#22c55e',
+                                                                fontSize: '0.7rem',
+                                                                height: 20,
+                                                            }}
+                                                        />
+                                                    )}
                                                 </Box>
                                             </Link>
                                             <Stack direction="row" spacing={1}>
@@ -520,16 +706,16 @@ export default function MangaPage() {
                                                     size="small"
                                                     variant="outlined"
                                                     fullWidth
-                                                    onClick={() =>
-                                                        queueMutation.mutate({
-                                                            manga_title: details.title,
-                                                            manga_url: url!,
-                                                            source: source || 'mangakatana:en',
-                                                            chapter_number: ch.chapter_number || 0,
-                                                            chapter_url: ch.url,
-                                                            chapter_title: ch.title,
-                                                        })
-                                                    }
+                                                onClick={() =>
+                                                    queueMutation.mutate({
+                                                        manga_title: details.title,
+                                                        manga_url: url!,
+                                                        source: source || 'mangakatana:en',
+                                                        chapter_number: ch.chapter_number || 0,
+                                                        chapter_url: ch.url,
+                                                        chapter_title: formatChapterTitle(ch.title, ch.chapter_number),
+                                                    })
+                                                }
                                                 >
                                                     {hasDownloadedFiles ? 'Re-download' : 'Download Chapter'}
                                                 </Button>
@@ -546,10 +732,9 @@ export default function MangaPage() {
                                                 )}
                                             </Stack>
                                         </Paper>
-                                            );
-                                        })()}
                                     </Grid>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <Grid size={{ xs: 12 }}>
                                     <Typography variant="body2" sx={{
@@ -566,6 +751,30 @@ export default function MangaPage() {
                 </Box>
             </Box>
 
+            {/* Context Menu for Chapter Read/Unread */}
+            <Menu
+                anchorEl={contextMenuAnchor}
+                open={Boolean(contextMenuAnchor)}
+                onClose={handleContextMenuClose}
+            >
+                {selectedChapter && !isChapterRead(selectedChapter.url) && (
+                    <MenuItem onClick={handleMarkAsRead} disabled={markReadMutation.isPending}>
+                        <ListItemIcon>
+                            <CheckCircle size={16} />
+                        </ListItemIcon>
+                        <ListItemText>Mark as Read</ListItemText>
+                    </MenuItem>
+                )}
+                {selectedChapter && isChapterRead(selectedChapter.url) && (
+                    <MenuItem onClick={handleMarkAsUnread} disabled={markUnreadMutation.isPending}>
+                        <ListItemIcon>
+                            <BookOpen size={16} />
+                        </ListItemIcon>
+                        <ListItemText>Mark as Unread</ListItemText>
+                    </MenuItem>
+                )}
+            </Menu>
+
             <SetCategoriesPicker
                 open={pickerOpen}
                 mangaId={libraryManga?.id}
@@ -578,6 +787,14 @@ export default function MangaPage() {
                 onClose={() => setFeedbackOpen(false)}
                 actions={feedbackActions}
             />
+            {libraryManga?.id && (
+                <TrackerMappingDialog
+                    open={mappingDialogOpen}
+                    onClose={() => setMappingDialogOpen(false)}
+                    mangaId={libraryManga.id}
+                    mangaTitle={details.title}
+                />
+            )}
         </Container>
     );
 }

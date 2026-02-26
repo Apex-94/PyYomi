@@ -4,10 +4,15 @@ import sys
 import argparse
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.extensions.loader import initialize_extensions
+
+# Load environment variables from backend/.env regardless of process CWD.
+BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 # from app.scheduler import scheduler_service
 
 from app.api import (
@@ -20,7 +25,9 @@ from app.api import (
     downloads_router,
     updates_router,
     settings_router,
+    backup_router,
 )
+from app.api.trackers import router as trackers_router
 from app.services.download_manager import download_manager
 
 # Global data directory that can be set via command line or environment
@@ -141,6 +148,8 @@ def create_app() -> FastAPI:
     app.include_router(library_router, prefix="/api/v1/library", tags=["library"])
     app.include_router(reader_router, prefix="/api/v1/reader", tags=["reader"])
     app.include_router(scheduler_router, prefix="/api/v1/scheduler", tags=["scheduler"])
+    app.include_router(trackers_router, prefix="/api/v1", tags=["trackers"])
+    app.include_router(backup_router, prefix="/api/v1", tags=["backup"])
 
     @app.on_event("startup")
     async def startup_event():

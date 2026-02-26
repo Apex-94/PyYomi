@@ -11,6 +11,7 @@ import UpdatesPage from './app/updates/page';
 import SettingsPage from './app/settings/page';
 import CategoriesPage from './components/CategoriesPage';
 import HistoryPage from './components/HistoryPage';
+import TrackerCallbackPage from './app/tracker/callback/page';
 
 // Pages that should have AppFrame (sidebar navigation)
 const PagesWithAppFrame = () => (
@@ -33,12 +34,16 @@ const PagesWithAppFrame = () => (
 // Reader page without AppFrame for full-screen experience
 const ReaderWithoutAppFrame = () => <ReaderPage />;
 
+// Tracker callback page without AppFrame for OAuth flow
+const TrackerCallbackWithoutAppFrame = () => <TrackerCallbackPage />;
+
 export default function App() {
   return (
     <Providers>
       <Router>
         <Routes>
           <Route path="/reader/*" element={<ReaderWithoutAppFrame />} />
+          <Route path="/tracker/callback/:tracker" element={<TrackerCallbackWithoutAppFrame />} />
           <Route path="/*" element={<PagesWithAppFrame />} />
         </Routes>
       </Router>

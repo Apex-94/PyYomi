@@ -127,3 +127,81 @@ export interface ReaderSettings {
   showPageNumbers: boolean;
   showProgress: boolean;
 }
+
+// Tracker types
+export interface Tracker {
+  name: string;
+  display_name: string;
+  oauth_configured: boolean;
+  oauth_flow?: 'code' | 'implicit';
+  supports_refresh_token?: boolean;
+}
+
+export interface TrackerStatus {
+  connected: boolean;
+  username: string | null;
+  user_id: string | null;
+  score_format?: string;
+}
+
+export interface TrackerCredential {
+  id: number;
+  tracker_name: string;
+  user_id: string;
+  username: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackerMapping {
+  id: number;
+  manga_id: number;
+  tracker_name: string;
+  tracker_manga_id: string;
+  tracker_url: string | null;
+  last_synced_chapter: number | null;
+  last_synced_at: string | null;
+  sync_status: 'pending' | 'synced' | 'error';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackerManga {
+  id: string;
+  title: string;
+  chapters: number | null;
+  status: string;
+  user_status?: string;
+  user_chapters?: number;
+}
+
+export interface FuzzyDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
+export interface TrackerEntry {
+  manga_id: string;
+  progress: number | null;
+  status: string | null;
+  score: number | null;
+  is_private: boolean | null;
+  started_at: FuzzyDate | null;
+  completed_at: FuzzyDate | null;
+  media_chapters: number | null;
+  updated_at: string | null;
+}
+
+export interface SyncQueueItem {
+  id: number;
+  manga_id: number;
+  chapter_number: number;
+  tracker_name: string;
+  operation: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error_message: string | null;
+  retry_count: number;
+  created_at: string;
+  processed_at: string | null;
+}

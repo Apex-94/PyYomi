@@ -8,6 +8,13 @@ import {
     DownloadItem,
     UpdateItem,
     LibraryAddResponse,
+    Tracker,
+    TrackerStatus,
+    TrackerManga,
+    TrackerEntry,
+    FuzzyDate,
+    TrackerMapping,
+    SyncQueueItem,
 } from '../types';
 
 export const api = axios.create();
@@ -43,7 +50,7 @@ if (typeof window !== 'undefined') {
     }) as EventListener);
 }
 
-export async function waitForBackend(): Promise<void> {
+export function waitForBackend(): Promise<void> {
     return Promise.resolve();
 }
 
@@ -217,6 +224,40 @@ export const markUpdateRead = async (chapterId: number) => {
     await api.post(`/updates/mark-read/${chapterId}`);
 };
 
+export const markChapterReadByManga = async (
+    mangaId: number,
+    chapterNumber: number,
+    chapterUrl: string,
+    chapterTitle?: string
+) => {
+    const response = await api.post('/updates/mark-read-by-manga', null, {
+        params: { manga_id: mangaId, chapter_number: chapterNumber, chapter_url: chapterUrl, chapter_title: chapterTitle }
+    });
+    return response.data;
+};
+
+export const markChapterUnreadByUrl = async (chapterUrl: string) => {
+    const response = await api.post('/updates/mark-unread-by-url', null, {
+        params: { chapter_url: chapterUrl }
+    });
+    return response.data;
+};
+
+export const getChaptersReadStatus = async (mangaUrl: string): Promise<{
+    manga_id: number | null;
+    chapters: Array<{
+        id: number;
+        chapter_number: number;
+        url: string;
+        is_read: boolean;
+    }>;
+}> => {
+    const response = await api.get('/updates/read-status', {
+        params: { manga_url: mangaUrl }
+    });
+    return response.data;
+};
+
 export const getAppSettings = async (): Promise<Record<string, unknown>> => {
     const response = await api.get('/settings');
     return response.data.settings;
@@ -225,3 +266,120 @@ export const getAppSettings = async (): Promise<Record<string, unknown>> => {
 export const updateAppSetting = async (key: string, value: unknown) => {
     await api.put('/settings', { key, value });
 };
+
+// Tracker API functions
+export async function getTrackers(): Promise<{ trackers: Tracker[] }> {
+    const response = await api.get('/trackers');
+    return response.data;
+}
+
+export async function getTrackerStatus(trackerName: string): Promise<TrackerStatus> {
+    const response = await api.get(`/trackers/${trackerName}/status`);
+    return response.data;
+}
+
+export async function connectTracker(trackerName: string): Promise<{ auth_url: string; state: string }> {
+    const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const response = await api.get(`/trackers/${trackerName}/connect`, {
+        params: frontendOrigin ? { frontend_origin: frontendOrigin } : undefined,
+    });
+    return response.data;
+}
+
+export async function disconnectTracker(trackerName: string): Promise<{ success: boolean }> {
+    const response = await api.delete(`/trackers/${trackerName}/disconnect`);
+    return response.data;
+}
+
+export async function searchTrackerManga(trackerName: string, query: string): Promise<{ results: TrackerManga[] }> {
+    const response = await api.get(`/trackers/${trackerName}/search`, {
+        params: { query }
+    });
+    return response.data;
+}
+
+export async function syncToTracker(
+    trackerName: string,
+    mangaId: number,
+    chapterNumber: number,
+    options?: {
+        status?: string;
+        score?: number;
+        is_private?: boolean;
+        started_at?: FuzzyDate | null;
+        completed_at?: FuzzyDate | null;
+        auto_status?: boolean;
+        total_chapters?: number | null;
+    }
+): Promise<{ success: boolean; queued?: boolean; queue_item_id?: number; detail?: string }> {
+    const response = await api.post(`/trackers/${trackerName}/sync`, {
+        manga_id: mangaId,
+        chapter_number: chapterNumber,
+        ...options,
+    });
+    return response.data;
+}
+
+export async function getTrackerMappings(trackerName: string): Promise<{ mappings: TrackerMapping[] }> {
+    const response = await api.get(`/trackers/${trackerName}/mappings`);
+    return response.data;
+}
+
+export async function createTrackerMapping(
+    trackerName: string,
+    mangaId: number,
+    trackerMangaId: string,
+    trackerUrl?: string
+): Promise<{ mapping: TrackerMapping }> {
+    const response = await api.post(`/trackers/${trackerName}/mappings`, null, {
+        params: { manga_id: mangaId, tracker_manga_id: trackerMangaId, tracker_url: trackerUrl }
+    });
+    return response.data;
+}
+
+export async function deleteTrackerMapping(trackerName: string, mangaId: number): Promise<{ success: boolean }> {
+    const response = await api.delete(`/trackers/${trackerName}/mappings`, {
+        params: { manga_id: mangaId }
+    });
+    return response.data;
+}
+
+export async function getTrackerUserList(trackerName: string): Promise<{ manga_list: TrackerManga[] }> {
+    const response = await api.get(`/trackers/${trackerName}/user-list`);
+    return response.data;
+}
+
+export async function getSyncQueue(trackerName: string): Promise<{ queue: SyncQueueItem[] }> {
+    const response = await api.get(`/trackers/${trackerName}/sync-queue`);
+    return response.data;
+}
+
+export async function processSyncQueue(trackerName: string): Promise<{ processed: number }> {
+    const response = await api.post(`/trackers/${trackerName}/sync-queue/process`);
+    return response.data;
+}
+
+export async function getTrackerEntry(trackerName: string, mangaId: number): Promise<{ entry: TrackerEntry | null }> {
+    const response = await api.get(`/trackers/${trackerName}/entry`, {
+        params: { manga_id: mangaId },
+    });
+    return response.data;
+}
+
+export async function updateTrackerEntry(
+    trackerName: string,
+    payload: {
+        manga_id: number;
+        progress?: number;
+        status?: string;
+        score?: number;
+        is_private?: boolean;
+        started_at?: FuzzyDate | null;
+        completed_at?: FuzzyDate | null;
+        auto_status?: boolean;
+        total_chapters?: number | null;
+    },
+): Promise<{ success: boolean }> {
+    const response = await api.put(`/trackers/${trackerName}/entry`, payload);
+    return response.data;
+}

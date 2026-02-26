@@ -1,11 +1,7 @@
-// ReaderPage.tsx
-// UI alignment pass: consistent max-width, centered chrome, safer click area,
-// better spacing on mobile, and aligned bottom nav + page indicator.
-
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api, getProxyUrl } from "../../lib/api";
+import { api, getProxyUrl, addHistoryEntry, markChapterReadByManga } from "../../lib/api";
 import { explainChapter } from "../../services/geminiService";
 import { ChevronLeft, ArrowLeft, ArrowRight, Sparkles, Settings2 } from "lucide-react";
 import {
@@ -164,6 +160,7 @@ export default function ReaderPage() {
   const navigate = useNavigate();
   const chapterUrl = searchParams.get("chapter_url") || "";
   const source = searchParams.get("source");
+  const mangaUrl = searchParams.get("manga_url");
   const [mode, setMode] = useState<"scroll" | "single">("single");
   const [dir, setDir] = useState<"ltr" | "rtl">("ltr");
   const [idx, setIdx] = useState(0);
@@ -182,6 +179,37 @@ export default function ReaderPage() {
       return resp.data;
     },
     staleTime: 1000 * 60 * 10,
+  });
+
+  // Query to get manga_id from library if manga is in library
+  const { data: libraryManga } = useQuery({
+    queryKey: ["library-manga", mangaUrl],
+    enabled: !!mangaUrl,
+    queryFn: async () => {
+      const resp = await api.get("/library");
+      const manga = resp.data.manga?.find((m: any) => m.url === mangaUrl);
+      return manga;
+    },
+  });
+
+  // Mutation to mark chapter as read
+  const markReadMutation = useMutation({
+    mutationFn: async () => {
+      if (!libraryManga?.id || !chapter?.number) return;
+      await markChapterReadByManga(
+        libraryManga.id,
+        chapter.number,
+        chapterUrl,
+        chapter.title
+      );
+      await addHistoryEntry(libraryManga.id, chapter.number);
+    },
+    onSuccess: () => {
+      console.log("Chapter marked as read");
+    },
+    onError: (error) => {
+      console.error("Failed to mark chapter as read:", error);
+    },
   });
 
   const pages: string[] = useMemo(() => data?.pages || [], [data]);
@@ -233,8 +261,22 @@ export default function ReaderPage() {
       const prevKey = dir === "rtl" ? "ArrowRight" : "ArrowLeft";
 
       if (mode === "single") {
-        if (e.key === nextKey) setIdx((i) => Math.min(pages.length - 1, i + 1));
-        if (e.key === prevKey) setIdx((i) => Math.max(0, i - 1));
+        if (e.key === nextKey) {
+          // Navigate to next page or next chapter
+          if (idx >= pages.length - 1 && data?.next_slug) {
+            goToNextChapter();
+          } else {
+            setIdx((i) => Math.min(pages.length - 1, i + 1));
+          }
+        }
+        if (e.key === prevKey) {
+          // Navigate to prev page or prev chapter
+          if (idx === 0 && data?.prev_slug) {
+            goToPrevChapter();
+          } else {
+            setIdx((i) => Math.max(0, i - 1));
+          }
+        }
       } else {
         if (e.key === "ArrowDown" || e.key === nextKey) {
           scrollRef.current?.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
@@ -250,7 +292,7 @@ export default function ReaderPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [dir, mode, pages.length]);
+  }, [dir, mode, pages.length, idx, data?.next_slug, data?.prev_slug]);
 
   if (!chapterUrl)
     return (
@@ -281,15 +323,64 @@ export default function ReaderPage() {
       </Box>
     );
 
+  // Helper to build chapter URL
+  const buildChapterUrl = (chapterUrl: string) =>
+    `/reader?chapter_url=${encodeURIComponent(chapterUrl)}&source=${encodeURIComponent(source || "")}${
+      mangaUrl ? `&manga_url=${encodeURIComponent(mangaUrl)}` : ""
+    }`;
+
   // Direction-aware navigation helpers
   const goPrev = () => setIdx((i) => Math.max(0, i - 1));
   const goNext = () => setIdx((i) => Math.min(pages.length - 1, i + 1));
 
-  const leftAction = dir === "rtl" ? goNext : goPrev;
-  const rightAction = dir === "rtl" ? goPrev : goNext;
+  // Navigate to next chapter when on last page
+  const goToNextChapter = () => {
+    if (data?.next_slug) {
+      if (libraryManga?.id && chapter?.number) {
+        markReadMutation.mutate();
+      }
+      navigate(buildChapterUrl(data.next_slug));
+    }
+  };
 
-  const leftDisabled = dir === "rtl" ? idx >= pages.length - 1 : idx === 0;
-  const rightDisabled = dir === "rtl" ? idx === 0 : idx >= pages.length - 1;
+  // Navigate to prev chapter when on first page
+  const goToPrevChapter = () => {
+    if (data?.prev_slug) {
+      navigate(buildChapterUrl(data.prev_slug));
+    }
+  };
+
+  // Simplified direction-aware click handlers
+  const onLeftClick = () => {
+    const isRtl = dir === "rtl";
+    const atStart = idx === 0;
+    const atEnd = idx >= pages.length - 1;
+    
+    if (isRtl) {
+      atEnd && data?.next_slug ? goToNextChapter() : goNext();
+    } else {
+      atStart && data?.prev_slug ? goToPrevChapter() : goPrev();
+    }
+  };
+
+  const onRightClick = () => {
+    const isRtl = dir === "rtl";
+    const atStart = idx === 0;
+    const atEnd = idx >= pages.length - 1;
+    
+    if (isRtl) {
+      atStart && data?.prev_slug ? goToPrevChapter() : goPrev();
+    } else {
+      atEnd && data?.next_slug ? goToNextChapter() : goNext();
+    }
+  };
+
+  const leftDisabled = dir === "rtl" 
+    ? (idx >= pages.length - 1 && !data?.next_slug) 
+    : (idx === 0 && !data?.prev_slug);
+  const rightDisabled = dir === "rtl" 
+    ? (idx === 0 && !data?.prev_slug) 
+    : (idx >= pages.length - 1 && !data?.next_slug);
 
   const onBackgroundClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -518,13 +609,7 @@ export default function ReaderPage() {
             >
               <Button
                 disabled={!data?.prev_slug}
-                onClick={() =>
-                  navigate(
-                    `/reader?chapter_url=${encodeURIComponent(data.prev_slug)}&source=${encodeURIComponent(
-                      source || ""
-                    )}`
-                  )
-                }
+                onClick={goToPrevChapter}
                 variant="outlined"
                 sx={{
                   py: 1.5,
@@ -542,13 +627,7 @@ export default function ReaderPage() {
 
               <Button
                 disabled={!data?.next_slug}
-                onClick={() =>
-                  navigate(
-                    `/reader?chapter_url=${encodeURIComponent(data.next_slug)}&source=${encodeURIComponent(
-                      source || ""
-                    )}`
-                  )
-                }
+                onClick={goToNextChapter}
                 variant="contained"
                 sx={{
                   py: 1.5,
@@ -597,7 +676,7 @@ export default function ReaderPage() {
             }}
             onClick={(e) => {
               e.stopPropagation();
-              if (!leftDisabled) leftAction();
+              if (!leftDisabled) onLeftClick();
             }}
           >
             <Box
@@ -649,7 +728,12 @@ export default function ReaderPage() {
               }}
             >
               <Typography variant="caption" sx={{ fontWeight: 900 }}>
-                Page {idx + 1} <span style={{ color: "#6b7280" }}>/</span> {pages.length}
+                {idx >= pages.length - 1 && data?.next_slug 
+                  ? "Last Page - Click Right for Next Chapter" 
+                  : idx === 0 && data?.prev_slug
+                    ? "First Page - Click Left for Prev Chapter"
+                    : <>Page {idx + 1} <span style={{ color: "#6b7280" }}>/</span> {pages.length}</>
+                }
               </Typography>
             </Paper>
           </Box>
@@ -673,7 +757,7 @@ export default function ReaderPage() {
             }}
             onClick={(e) => {
               e.stopPropagation();
-              if (!rightDisabled) rightAction();
+              if (!rightDisabled) onRightClick();
             }}
           >
             <Box

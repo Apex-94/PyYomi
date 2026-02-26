@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional, List
 
 class Manga(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -93,3 +93,44 @@ class Setting(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     key: str = Field(unique=True)
     value: str
+
+
+class TrackerCredential(SQLModel, table=True):
+    """Stores encrypted OAuth tokens for each linked tracker"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tracker_name: str = Field(index=True)  # 'mal', 'anilist', 'kitsu', 'mangaupdates'
+    user_id: Optional[str] = Field(default=None)  # Tracker's user ID
+    username: Optional[str] = Field(default=None)  # Tracker's username
+    access_token: str  # Encrypted
+    refresh_token: Optional[str] = None  # Encrypted
+    token_expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TrackerMapping(SQLModel, table=True):
+    """Maps local manga to tracker-specific entries"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    manga_id: int = Field(foreign_key="manga.id", index=True)
+    tracker_name: str = Field(index=True)
+    tracker_manga_id: str  # ID on the tracker
+    tracker_url: Optional[str] = None
+    last_synced_chapter: Optional[int] = None
+    last_synced_at: Optional[datetime] = None
+    sync_status: str = "pending"  # 'pending', 'synced', 'error'
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SyncQueue(SQLModel, table=True):
+    """Queue for pending sync operations"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    manga_id: int = Field(foreign_key="manga.id", index=True)
+    chapter_number: int
+    tracker_name: str
+    operation: str = "update_progress"  # 'update_progress', 'add_to_list', 'remove_from_list'
+    status: str = "pending"  # 'pending', 'processing', 'completed', 'failed'
+    error_message: Optional[str] = None
+    retry_count: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    processed_at: Optional[datetime] = None

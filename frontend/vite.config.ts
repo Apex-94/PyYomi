@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 5173,
         host: '0.0.0.0',
+        // Enable SPA routing - serve index.html for all routes
+        // This is needed for OAuth callbacks like /tracker/callback/anilist
       },
       plugins: [react()],
       define: {

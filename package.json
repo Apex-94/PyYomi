@@ -11,8 +11,17 @@
     "electron:build": "npm run backend:build-binary && npm run frontend:build && npm run build --prefix electron",
     "electron:build:win": "npm run backend:build-binary && npm run frontend:build && npm run build:win --prefix electron"
   },
-  "keywords": ["manga", "reader", "desktop", "pyyomi", "electron"],
+  "keywords": [
+    "manga",
+    "reader",
+    "desktop",
+    "pyyomi",
+    "electron"
+  ],
   "author": "Pyyomi",
   "license": "MIT",
-  "description": "Manga Reader Desktop App - Electron Runtime"
+  "description": "Manga Reader Desktop App - Electron Runtime",
+  "dependencies": {
+    "pyyomi": "file:frontend"
+  }
 }

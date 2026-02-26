@@ -16,3 +16,4 @@ from .history import router as history_router
 from .downloads import router as downloads_router
 from .updates import router as updates_router
 from .settings import router as settings_router
+from .backup import router as backup_router
