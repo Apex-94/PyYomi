@@ -133,6 +133,8 @@ export interface Tracker {
   name: string;
   display_name: string;
   oauth_configured: boolean;
+  oauth_flow?: 'code' | 'implicit';
+  supports_refresh_token?: boolean;
 }
 
 export interface TrackerStatus {

@@ -1,7 +1,7 @@
 """Base tracker interface"""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Tuple, Union
 
 
 @dataclass
@@ -50,17 +50,31 @@ class BaseTracker(ABC):
     def uses_pkce(self) -> bool:
         """Whether this tracker uses PKCE for OAuth"""
         return False
+
+    @property
+    def supports_refresh_token(self) -> bool:
+        """Whether this tracker supports refreshing an expired access token"""
+        return True
     
     @abstractmethod
-    def get_oauth_config(self) -> OAuthConfig:
+    def get_oauth_config(self, redirect_uri: Optional[str] = None) -> OAuthConfig:
         """Return OAuth configuration"""
     
     @abstractmethod
-    async def get_auth_url(self, state: str) -> str:
+    async def get_auth_url(
+        self,
+        state: str,
+        redirect_uri: Optional[str] = None,
+    ) -> Union[str, Tuple[str, str]]:
         """Generate authorization URL"""
     
     @abstractmethod
-    async def exchange_code(self, code: str, code_verifier: Optional[str] = None) -> TokenData:
+    async def exchange_code(
+        self,
+        code: str,
+        code_verifier: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+    ) -> TokenData:
         """Exchange authorization code for tokens"""
     
     @abstractmethod

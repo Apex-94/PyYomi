@@ -262,11 +262,15 @@ function startFrontend() {
   return new Promise((resolve) => {
     console.log('Starting frontend...');
 
-    const distPath = findBundledFrontendDist();
-    if (distPath) {
-      console.log('Using bundled frontend dist:', distPath);
-      startStaticServer(distPath, 3000).then(resolve);
-      return;
+    // In packaged builds, serve bundled static assets.
+    // In development, always run Vite dev server to avoid stale dist bundles.
+    if (app.isPackaged) {
+      const distPath = findBundledFrontendDist();
+      if (distPath) {
+        console.log('Using bundled frontend dist:', distPath);
+        startStaticServer(distPath, 3000).then(resolve);
+        return;
+      }
     }
 
     const frontendDir = getDevFrontendDir();
@@ -431,6 +435,40 @@ async function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      const isTrackerOAuthHost =
+        host === 'anilist.co' ||
+        host === 'myanimelist.net' ||
+        host.endsWith('.anilist.co') ||
+        host.endsWith('.myanimelist.net');
+      const isLocalCallbackHost = host === '127.0.0.1' || host === 'localhost';
+      const isTrackerCallbackPath = parsed.pathname.startsWith('/tracker/callback/');
+
+      // Keep tracker OAuth and callback flow inside Electron so popup and opener
+      // share the same backend context and postMessage bridge.
+      if (isTrackerOAuthHost || (isLocalCallbackHost && isTrackerCallbackPath)) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            width: 640,
+            height: 760,
+            parent: mainWindow,
+            modal: false,
+            autoHideMenuBar: true,
+            webPreferences: {
+              nodeIntegration: false,
+              contextIsolation: true,
+              preload: path.join(__dirname, 'preload.js'),
+            },
+          },
+        };
+      }
+    } catch (error) {
+      console.warn('Invalid popup URL, opening externally:', url, error);
+    }
+
     shell.openExternal(url);
     return { action: 'deny' };
   });

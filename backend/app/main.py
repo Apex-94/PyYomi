@@ -10,8 +10,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.extensions.loader import initialize_extensions
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from backend/.env regardless of process CWD.
+BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+load_dotenv(os.path.join(BACKEND_ROOT, ".env"))
 # from app.scheduler import scheduler_service
 
 from app.api import (

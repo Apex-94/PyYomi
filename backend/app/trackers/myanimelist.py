@@ -2,12 +2,13 @@
 import httpx
 import secrets
 import os
+import urllib.parse
 from typing import List, Optional, Tuple
 
 from .base import BaseTracker, OAuthConfig, TokenData, TrackerManga
 
 
-DEFAULT_CLIENT_ID = "c46c9e24640a64dad5be5ca7a1a53a0f"
+DEFAULT_CLIENT_ID = "320f59f4c58c4d5d8a9a659b18c15d81"
 
 
 class MyAnimeListTracker(BaseTracker):
@@ -18,6 +19,7 @@ class MyAnimeListTracker(BaseTracker):
     
     BASE_URL = "https://api.myanimelist.net/v2"
     BASE_OAUTH_URL = "https://myanimelist.net/v1/oauth2"
+    DEFAULT_FRONTEND_ORIGIN = "http://127.0.0.1:3000"
     
     @property
     def uses_pkce(self) -> bool:
@@ -25,25 +27,36 @@ class MyAnimeListTracker(BaseTracker):
     
     def __init__(self):
         self.client_id = os.environ.get("MAL_CLIENT_ID", DEFAULT_CLIENT_ID)
-        self.redirect_uri = os.environ.get("MAL_REDIRECT_URI", "http://localhost:3000/tracker/callback/mal")
+        self.redirect_uri_override = os.environ.get("MAL_REDIRECT_URI")
     
-    def get_oauth_config(self) -> OAuthConfig:
+    def resolve_redirect_uri(self, frontend_origin: Optional[str] = None) -> str:
+        if self.redirect_uri_override:
+            return self.redirect_uri_override
+        origin = (frontend_origin or self.DEFAULT_FRONTEND_ORIGIN).rstrip("/")
+        return f"{origin}/tracker/callback/mal"
+
+    def get_oauth_config(self, redirect_uri: Optional[str] = None) -> OAuthConfig:
         return OAuthConfig(
             client_id=self.client_id,
             client_secret=None,
-            redirect_uri=self.redirect_uri,
+            redirect_uri=redirect_uri or self.resolve_redirect_uri(),
             auth_url=f"{self.BASE_OAUTH_URL}/authorize",
             token_url=f"{self.BASE_OAUTH_URL}/token",
             scope="read write"
         )
     
-    async def get_auth_url(self, state: str) -> Tuple[str, str]:
+    async def get_auth_url(
+        self,
+        state: str,
+        redirect_uri: Optional[str] = None,
+    ) -> Tuple[str, str]:
         """Generate authorization URL with PKCE plain method.
         
         Returns: (auth_url, code_verifier) - code_verifier must be stored for callback
         """
-        config = self.get_oauth_config()
-        code_verifier = secrets.token_urlsafe(128)
+        config = self.get_oauth_config(redirect_uri=redirect_uri)
+        # MAL requires a PKCE verifier length between 43 and 128 chars.
+        code_verifier = secrets.token_urlsafe(64)
         params = {
             "response_type": "code",
             "client_id": config.client_id,
@@ -52,12 +65,17 @@ class MyAnimeListTracker(BaseTracker):
             "code_challenge_method": "plain",
             "state": state
         }
-        url = f"{config.auth_url}?" + "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"{config.auth_url}?{urllib.parse.urlencode(params)}"
         return url, code_verifier
     
-    async def exchange_code(self, code: str, code_verifier: Optional[str] = None) -> TokenData:
+    async def exchange_code(
+        self,
+        code: str,
+        code_verifier: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+    ) -> TokenData:
         """Exchange authorization code for tokens using PKCE."""
-        config = self.get_oauth_config()
+        config = self.get_oauth_config(redirect_uri=redirect_uri)
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 config.token_url,

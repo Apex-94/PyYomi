@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Alert } from '@mui/material';
 import { api } from '../../../lib/api';
@@ -8,12 +8,8 @@ export default function TrackerCallbackPage() {
   const { tracker: trackerName } = useParams<{ tracker: string }>();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const hasProcessed = useRef(false);
 
   useEffect(() => {
-    if (hasProcessed.current) return;
-    hasProcessed.current = true;
-
     const handleCallback = async () => {
       if (!trackerName) {
         setStatus('error');
@@ -21,25 +17,24 @@ export default function TrackerCallbackPage() {
         return;
       }
 
-      // Check for implicit grant flow (AniList) - token in URL fragment
-      if (trackerName === 'anilist') {
-        const fragment = window.location.hash.substring(1);
-        const fragmentParams = new URLSearchParams(fragment);
-        const accessToken = fragmentParams.get('access_token');
-        const state = fragmentParams.get('state');
-        const expiresIn = fragmentParams.get('expires_in');
+      const href = window.location.href;
+      const fragment = window.location.hash.substring(1);
+      const fragmentParams = new URLSearchParams(fragment);
+      const tokenFromHref =
+        href.match(/[?#&]access_token=([^&]+)/)?.[1] ??
+        href.match(/#access_token=([^&]+)/)?.[1] ??
+        null;
+      const accessToken = fragmentParams.get('access_token') || (tokenFromHref ? decodeURIComponent(tokenFromHref) : null);
+      const stateFromFragment = fragmentParams.get('state');
+      const expiresIn = fragmentParams.get('expires_in');
 
-        if (!accessToken || !state) {
-          setStatus('error');
-          setError('Missing access token in callback');
-          return;
-        }
+      // Implicit grant flow: token in URL fragment
+      if (accessToken) {
 
         try {
-          // Use implicit grant callback endpoint
           const response = await api.post(`/trackers/${trackerName}/callback/implicit`, {
             access_token: accessToken,
-            state: state,
+            state: stateFromFragment,
             expires_in: expiresIn ? parseInt(expiresIn) : 31536000,
           });
           setStatus('success');
@@ -57,13 +52,20 @@ export default function TrackerCallbackPage() {
         return;
       }
 
-      // Authorization code flow (MAL, etc.)
+      // AniList in this app uses implicit flow only by default.
+      if (trackerName === 'anilist') {
+        setStatus('error');
+        setError('Missing access_token in AniList callback. Please reconnect and approve again.');
+        return;
+      }
+
+      // Authorization code flow
       const code = searchParams.get('code');
-      const state = searchParams.get('state');
+      const state = searchParams.get('state') || stateFromFragment;
 
       if (!code || !state) {
         setStatus('error');
-        setError('Missing required parameters (code or state)');
+        setError('Missing required callback parameters');
         return;
       }
 

@@ -277,7 +277,10 @@ export async function getTrackerStatus(trackerName: string): Promise<TrackerStat
 }
 
 export async function connectTracker(trackerName: string): Promise<{ auth_url: string; state: string }> {
-    const response = await api.get(`/trackers/${trackerName}/connect`);
+    const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const response = await api.get(`/trackers/${trackerName}/connect`, {
+        params: frontendOrigin ? { frontend_origin: frontendOrigin } : undefined,
+    });
     return response.data;
 }
 
@@ -293,9 +296,14 @@ export async function searchTrackerManga(trackerName: string, query: string): Pr
     return response.data;
 }
 
-export async function syncToTracker(trackerName: string, mangaId: number, chapterNumber: number): Promise<{ success: boolean }> {
-    const response = await api.post(`/trackers/${trackerName}/sync`, null, {
-        params: { manga_id: mangaId, chapter_number: chapterNumber }
+export async function syncToTracker(
+    trackerName: string,
+    mangaId: number,
+    chapterNumber: number
+): Promise<{ success: boolean; queued?: boolean; queue_item_id?: number; detail?: string }> {
+    const response = await api.post(`/trackers/${trackerName}/sync`, {
+        manga_id: mangaId,
+        chapter_number: chapterNumber,
     });
     return response.data;
 }
@@ -324,7 +332,7 @@ export async function deleteTrackerMapping(trackerName: string, mangaId: number)
     return response.data;
 }
 
-export async function getTrackerUserList(trackerName: string): Promise<{ list: TrackerManga[] }> {
+export async function getTrackerUserList(trackerName: string): Promise<{ manga_list: TrackerManga[] }> {
     const response = await api.get(`/trackers/${trackerName}/user-list`);
     return response.data;
 }

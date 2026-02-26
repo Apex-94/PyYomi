@@ -1,12 +1,13 @@
 """AniList tracker implementation using GraphQL."""
 import httpx
 import os
+import urllib.parse
 from typing import List, Optional
 
 from .base import BaseTracker, OAuthConfig, TokenData, TrackerManga
 
 
-# Default AniList client ID (public, same approach as MAL)
+# Hardcoded AniList client ID
 DEFAULT_CLIENT_ID = "36426"
 
 
@@ -18,46 +19,79 @@ class AniListTracker(BaseTracker):
     
     API_URL = "https://graphql.anilist.co"
     BASE_URL = "https://anilist.co/api/v2/"
-    
+    DEFAULT_FRONTEND_ORIGIN = "http://127.0.0.1:3000"
+
+    @property
+    def uses_implicit_grant(self) -> bool:
+        return self.oauth_flow == "implicit"
+
+    @property
+    def supports_refresh_token(self) -> bool:
+        return False
+
     def __init__(self):
         self.client_id = os.environ.get("ANILIST_CLIENT_ID", DEFAULT_CLIENT_ID)
         self.client_secret = os.environ.get("ANILIST_CLIENT_SECRET")
-        self.redirect_uri = os.environ.get("ANILIST_REDIRECT_URI", "http://localhost:5173/tracker/callback/anilist")
+        self.redirect_uri_override = os.environ.get("ANILIST_REDIRECT_URI")
+        flow = os.environ.get("ANILIST_OAUTH_FLOW", "implicit").strip().lower()
+        # Default to implicit so AniList works without .env secrets.
+        self.oauth_flow = flow if flow in {"code", "implicit"} else "implicit"
     
-    def get_oauth_config(self) -> OAuthConfig:
+    def resolve_redirect_uri(self, frontend_origin: Optional[str] = None) -> str:
+        if self.redirect_uri_override:
+            return self.redirect_uri_override
+        origin = (frontend_origin or self.DEFAULT_FRONTEND_ORIGIN).rstrip("/")
+        return f"{origin}/tracker/callback/anilist"
+
+    def get_oauth_config(self, redirect_uri: Optional[str] = None) -> OAuthConfig:
         return OAuthConfig(
             client_id=self.client_id,
             client_secret=self.client_secret,
-            redirect_uri=self.redirect_uri,
+            redirect_uri=redirect_uri or self.resolve_redirect_uri(),
             auth_url=f"{self.BASE_URL}oauth/authorize",
             token_url=f"{self.BASE_URL}oauth/token",
             scope=None
         )
     
-    async def get_auth_url(self, state: str) -> str:
-        """Generate authorization URL using implicit grant flow.
-        
-        AniList implicit grant only requires client_id and response_type.
-        The redirect_uri is configured in the AniList app settings.
-        The token is returned directly in the URL fragment.
-        """
-        import urllib.parse
-        config = self.get_oauth_config()
-        # AniList implicit grant only needs client_id and response_type
-        # redirect_uri is configured in the AniList app settings
+    async def get_auth_url(self, state: str, redirect_uri: Optional[str] = None) -> str:
+        """Generate authorization URL for configured AniList OAuth flow."""
+        config = self.get_oauth_config(redirect_uri=redirect_uri)
+        if not config.client_id:
+            raise ValueError("ANILIST_CLIENT_ID is required")
+        # Keep AniList implicit authorization URL minimal to match provider examples.
+        if self.uses_implicit_grant:
+            params = {
+                "client_id": config.client_id,
+                "response_type": "token",
+            }
+            return f"{config.auth_url}?{urllib.parse.urlencode(params)}"
+
         params = {
             "client_id": config.client_id,
-            "response_type": "token",
+            "response_type": "code",
+            "redirect_uri": config.redirect_uri,
+            "state": state,
         }
+        if not self.uses_implicit_grant and not config.client_secret:
+            raise ValueError("ANILIST_CLIENT_SECRET is required when ANILIST_OAUTH_FLOW=code")
         return f"{config.auth_url}?{urllib.parse.urlencode(params)}"
     
-    async def exchange_code(self, code: str, code_verifier: Optional[str] = None) -> TokenData:
+    async def exchange_code(
+        self,
+        code: str,
+        code_verifier: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+    ) -> TokenData:
         """Exchange authorization code for access token."""
-        config = self.get_oauth_config()
+        if self.uses_implicit_grant:
+            raise ValueError("AniList implicit flow does not use code exchange")
+        config = self.get_oauth_config(redirect_uri=redirect_uri)
+        if not config.client_secret:
+            raise ValueError("ANILIST_CLIENT_SECRET is required for AniList OAuth code exchange")
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 config.token_url,
-                data={
+                json={
                     "grant_type": "authorization_code",
                     "client_id": config.client_id,
                     "client_secret": config.client_secret,
@@ -76,24 +110,7 @@ class AniListTracker(BaseTracker):
     
     async def refresh_tokens(self, refresh_token: str) -> TokenData:
         """Refresh access token."""
-        config = self.get_oauth_config()
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                config.token_url,
-                data={
-                    "grant_type": "refresh_token",
-                    "client_id": config.client_id,
-                    "client_secret": config.client_secret,
-                    "refresh_token": refresh_token
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            return TokenData(
-                access_token=data["access_token"],
-                refresh_token=data.get("refresh_token"),
-                expires_in=data.get("expires_in")
-            )
+        raise NotImplementedError("AniList does not currently support refresh tokens")
     
     async def get_user_info(self, access_token: str) -> dict:
         """Get user information from AniList."""

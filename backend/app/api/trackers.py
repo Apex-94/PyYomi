@@ -10,6 +10,7 @@ import json
 import base64
 import hashlib
 import hmac
+from urllib.parse import urlparse
 
 from ..db.database import get_session
 from ..db.models import TrackerCredential, TrackerMapping, SyncQueue
@@ -23,15 +24,20 @@ oauth_states: dict = {}
 
 # Secret key for signing state tokens (in production, use proper secret management)
 STATE_SECRET = os.environ.get("STATE_SECRET", secrets.token_hex(32))
+TOKEN_EXPIRY_SKEW_SECONDS = 60
+SYNC_MAX_RETRIES = 3
+SYNC_PROCESS_BATCH_SIZE = 50
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
 
-def encode_state(tracker_name: str, random_state: str) -> str:
+def encode_state(tracker_name: str, random_state: str, redirect_uri: Optional[str] = None) -> str:
     """Encode tracker name and random state into a single state parameter with signature"""
     data = {"tracker": tracker_name, "random": random_state}
+    if redirect_uri:
+        data["redirect_uri"] = redirect_uri
     payload = base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
     signature = hmac.new(
         STATE_SECRET.encode(), payload.encode(), hashlib.sha256
@@ -79,17 +85,17 @@ def get_credential_or_401(session: Session, tracker_name: str) -> TrackerCredent
     return credential
 
 
-def validate_state(state: str, tracker_name: str) -> Optional[str]:
-    """Validate OAuth state and return code_verifier if present.
-    
-    Returns None if state is invalid, raises HTTPException if tracker mismatch.
-    """
+def validate_state(state: str, tracker_name: str) -> dict:
+    """Validate OAuth state and return state metadata (code_verifier, redirect_uri)."""
     stored_state = oauth_states.pop(state, None)
     
     if stored_state:
         if stored_state.get("tracker") != tracker_name:
             raise HTTPException(status_code=400, detail="State tracker mismatch")
-        return stored_state.get("code_verifier")
+        return {
+            "code_verifier": stored_state.get("code_verifier"),
+            "redirect_uri": stored_state.get("redirect_uri"),
+        }
     
     # State not in memory (server restart or multi-worker) - decode from state
     decoded = decode_state(state)
@@ -97,7 +103,20 @@ def validate_state(state: str, tracker_name: str) -> Optional[str]:
         raise HTTPException(status_code=400, detail="Invalid state - cannot decode")
     if decoded.get("tracker") != tracker_name:
         raise HTTPException(status_code=400, detail="State tracker mismatch")
-    return None  # PKCE verifier lost if not in memory
+    return {
+        "code_verifier": None,  # PKCE verifier is lost if state wasn't found in memory.
+        "redirect_uri": decoded.get("redirect_uri"),
+    }
+
+
+def normalize_frontend_origin(frontend_origin: Optional[str]) -> Optional[str]:
+    """Normalize frontend origin passed by client and reject malformed values."""
+    if not frontend_origin:
+        return None
+    parsed = urlparse(frontend_origin)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def upsert_credential(session: Session, credential: TrackerCredential) -> None:
@@ -120,6 +139,82 @@ def get_mapping(session: Session, manga_id: int, tracker_name: str) -> Optional[
     ).first()
 
 
+def is_token_expired(credential: TrackerCredential) -> bool:
+    """Check whether the credential's access token is expired (with small skew)."""
+    if not credential.token_expires_at:
+        return False
+    return credential.token_expires_at <= datetime.utcnow() + timedelta(seconds=TOKEN_EXPIRY_SKEW_SECONDS)
+
+
+async def get_valid_access_token(
+    session: Session,
+    tracker,
+    credential: TrackerCredential,
+) -> str:
+    """Return a valid access token, refreshing when supported."""
+    access_token = encryption_service.decrypt(credential.access_token)
+    if not is_token_expired(credential):
+        return access_token
+
+    if not tracker.supports_refresh_token or not credential.refresh_token:
+        raise HTTPException(status_code=401, detail="Tracker token expired. Please reconnect.")
+
+    try:
+        refresh_token = encryption_service.decrypt(credential.refresh_token)
+        token_data = await tracker.refresh_tokens(refresh_token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Tracker token refresh failed: {str(e)}")
+
+    credential.access_token = encryption_service.encrypt(token_data.access_token)
+    if token_data.refresh_token:
+        credential.refresh_token = encryption_service.encrypt(token_data.refresh_token)
+    credential.token_expires_at = (
+        datetime.utcnow() + timedelta(seconds=token_data.expires_in)
+        if token_data.expires_in else None
+    )
+    session.add(credential)
+    session.commit()
+    return token_data.access_token
+
+
+def queue_sync_update(
+    session: Session,
+    tracker_name: str,
+    manga_id: int,
+    chapter_number: int,
+    error_message: Optional[str] = None,
+) -> SyncQueue:
+    """Queue or update a pending sync update operation."""
+    existing = session.exec(
+        select(SyncQueue).where(
+            SyncQueue.manga_id == manga_id,
+            SyncQueue.tracker_name == tracker_name,
+            SyncQueue.operation == "update_progress",
+            SyncQueue.status == "pending",
+        ).order_by(SyncQueue.created_at.desc())
+    ).first()
+
+    if existing:
+        # Keep a single pending job per manga/tracker and always advance to latest chapter.
+        if chapter_number > existing.chapter_number:
+            existing.chapter_number = chapter_number
+        if error_message:
+            existing.error_message = error_message
+        session.add(existing)
+        return existing
+
+    queue_item = SyncQueue(
+        manga_id=manga_id,
+        chapter_number=chapter_number,
+        tracker_name=tracker_name,
+        operation="update_progress",
+        status="pending",
+        error_message=error_message,
+    )
+    session.add(queue_item)
+    return queue_item
+
+
 # =============================================================================
 # Request Models
 # =============================================================================
@@ -131,9 +226,9 @@ class SyncRequest(BaseModel):
 
 
 class ImplicitGrantRequest(BaseModel):
-    """Request model for implicit grant callback (AniList)"""
+    """Request model for implicit grant callback"""
     access_token: str
-    state: str
+    state: Optional[str] = None
     expires_in: int = 31536000  # Default 1 year
 
 
@@ -147,8 +242,15 @@ async def list_trackers():
     from ..trackers.anilist import DEFAULT_CLIENT_ID as ANILIST_DEFAULT_ID
     from ..trackers.myanimelist import DEFAULT_CLIENT_ID as MAL_DEFAULT_ID
     
-    # Check if client ID is configured (either via env var or default)
+    # Check if credentials are configured for each tracker.
     def is_oauth_configured(tracker_name: str, default_id: str = None) -> bool:
+        if tracker_name == "anilist":
+            flow = os.environ.get("ANILIST_OAUTH_FLOW", "implicit").strip().lower()
+            client_id = os.environ.get("ANILIST_CLIENT_ID") or default_id
+            client_secret = os.environ.get("ANILIST_CLIENT_SECRET")
+            if flow == "implicit":
+                return bool(client_id)
+            return bool(client_id and client_secret)
         env_id = os.environ.get(f"{tracker_name.upper()}_CLIENT_ID")
         return bool(env_id or default_id)
     
@@ -161,7 +263,9 @@ async def list_trackers():
         {
             "name": name,
             "display_name": tracker.display_name,
-            "oauth_configured": is_oauth_configured(name, default_ids.get(name))
+            "oauth_configured": is_oauth_configured(name, default_ids.get(name)),
+            "oauth_flow": "implicit" if tracker.uses_implicit_grant else "code",
+            "supports_refresh_token": tracker.supports_refresh_token,
         }
         for name, tracker in TrackerRegistry.list_all().items()
     ]
@@ -185,21 +289,42 @@ async def get_tracker_status(
 
 
 @router.get("/{tracker_name}/connect")
-async def connect_tracker(tracker_name: str):
+async def connect_tracker(
+    tracker_name: str,
+    frontend_origin: Optional[str] = Query(None),
+):
     """Initiate OAuth flow for a tracker"""
     tracker = get_tracker_or_404(tracker_name)
     
     random_state = secrets.token_urlsafe(32)
-    state = encode_state(tracker_name, random_state)
+    normalized_origin = normalize_frontend_origin(frontend_origin)
+    redirect_uri = (
+        tracker.resolve_redirect_uri(normalized_origin)
+        if hasattr(tracker, "resolve_redirect_uri")
+        else None
+    )
+    state = encode_state(tracker_name, random_state, redirect_uri)
     
-    auth_url_result = await tracker.get_auth_url(state)
+    try:
+        auth_url_result = await tracker.get_auth_url(state, redirect_uri=redirect_uri)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
     if isinstance(auth_url_result, tuple):
         auth_url, code_verifier = auth_url_result
-        oauth_states[state] = {"tracker": tracker_name, "random": random_state, "code_verifier": code_verifier}
+        oauth_states[state] = {
+            "tracker": tracker_name,
+            "random": random_state,
+            "code_verifier": code_verifier,
+            "redirect_uri": redirect_uri,
+        }
     else:
         auth_url = auth_url_result
-        oauth_states[state] = {"tracker": tracker_name, "random": random_state}
+        oauth_states[state] = {
+            "tracker": tracker_name,
+            "random": random_state,
+            "redirect_uri": redirect_uri,
+        }
     
     return {"auth_url": auth_url, "state": state}
 
@@ -213,16 +338,20 @@ async def oauth_callback(
 ):
     """Handle OAuth callback from tracker"""
     tracker = get_tracker_or_404(tracker_name)
+    if tracker.uses_implicit_grant:
+        raise HTTPException(status_code=400, detail="Tracker uses implicit grant callback")
     
     # Check if already connected (handles React StrictMode double-call)
     existing_credential = get_credential(session, tracker_name)
     if existing_credential:
         return {"success": True, "username": existing_credential.username, "already_connected": True}
     
-    code_verifier = validate_state(state, tracker_name)
+    state_data = validate_state(state, tracker_name)
+    code_verifier = state_data.get("code_verifier")
+    redirect_uri = state_data.get("redirect_uri")
     
     try:
-        token_data = await tracker.exchange_code(code, code_verifier)
+        token_data = await tracker.exchange_code(code, code_verifier, redirect_uri)
         user_info = await tracker.get_user_info(token_data.access_token)
         
         credential = TrackerCredential(
@@ -260,13 +389,16 @@ async def implicit_grant_callback(
     which extracts it from the URL fragment (#access_token=...).
     """
     tracker = get_tracker_or_404(tracker_name)
+    if not tracker.uses_implicit_grant:
+        raise HTTPException(status_code=400, detail="Tracker does not use implicit grant callback")
     
     # Check if already connected (handles React StrictMode double-call)
     existing_credential = get_credential(session, tracker_name)
     if existing_credential:
         return {"success": True, "username": existing_credential.username, "already_connected": True}
     
-    validate_state(request.state, tracker_name)
+    if request.state:
+        validate_state(request.state, tracker_name)
     
     try:
         user_info = await tracker.get_user_info(request.access_token)
@@ -315,7 +447,7 @@ async def search_tracker_manga(
     tracker = get_tracker_or_404(tracker_name)
     credential = get_credential_or_401(session, tracker_name)
     
-    access_token = encryption_service.decrypt(credential.access_token)
+    access_token = await get_valid_access_token(session, tracker, credential)
     results = await tracker.search_manga(access_token, query)
     
     return {"results": results}
@@ -335,16 +467,51 @@ async def sync_to_tracker(
     if not mapping:
         raise HTTPException(status_code=404, detail="Manga not mapped to tracker")
     
-    access_token = encryption_service.decrypt(credential.access_token)
-    success = await tracker.update_progress(access_token, mapping.tracker_manga_id, request.chapter_number)
-    
+    access_token = await get_valid_access_token(session, tracker, credential)
+
+    try:
+        success = await tracker.update_progress(access_token, mapping.tracker_manga_id, request.chapter_number)
+    except Exception as e:
+        queue_item = queue_sync_update(
+            session,
+            tracker_name=tracker_name,
+            manga_id=request.manga_id,
+            chapter_number=request.chapter_number,
+            error_message=str(e),
+        )
+        mapping.sync_status = "pending"
+        session.commit()
+        session.refresh(queue_item)
+        return {
+            "success": False,
+            "queued": True,
+            "queue_item_id": queue_item.id,
+            "detail": str(e),
+        }
+
     if success:
         mapping.last_synced_chapter = request.chapter_number
         mapping.last_synced_at = datetime.utcnow()
         mapping.sync_status = "synced"
         session.commit()
-    
-    return {"success": success}
+        return {"success": True, "queued": False}
+
+    queue_item = queue_sync_update(
+        session,
+        tracker_name=tracker_name,
+        manga_id=request.manga_id,
+        chapter_number=request.chapter_number,
+        error_message="Tracker rejected update",
+    )
+    mapping.sync_status = "pending"
+    session.commit()
+    session.refresh(queue_item)
+    return {
+        "success": False,
+        "queued": True,
+        "queue_item_id": queue_item.id,
+        "detail": "Tracker rejected update",
+    }
 
 
 @router.get("/{tracker_name}/user-list")
@@ -356,7 +523,7 @@ async def get_user_list(
     tracker = get_tracker_or_404(tracker_name)
     credential = get_credential_or_401(session, tracker_name)
     
-    access_token = encryption_service.decrypt(credential.access_token)
+    access_token = await get_valid_access_token(session, tracker, credential)
     manga_list = await tracker.get_user_list(access_token)
     
     return {"manga_list": manga_list}
@@ -452,14 +619,87 @@ async def add_to_sync_queue(
     session: Session = Depends(get_session)
 ):
     """Add a sync operation to the queue"""
-    queue_item = SyncQueue(
+    queue_item = queue_sync_update(
+        session,
+        tracker_name=tracker_name,
         manga_id=request.manga_id,
         chapter_number=request.chapter_number,
-        tracker_name=tracker_name,
-        operation="update_progress"
     )
-    session.add(queue_item)
     session.commit()
     session.refresh(queue_item)
     
     return {"queue_item": queue_item}
+
+
+@router.post("/{tracker_name}/sync-queue/process")
+async def process_sync_queue(
+    tracker_name: str,
+    session: Session = Depends(get_session)
+):
+    """Process pending sync operations for a tracker."""
+    tracker = get_tracker_or_404(tracker_name)
+    credential = get_credential_or_401(session, tracker_name)
+
+    queue_items = session.exec(
+        select(SyncQueue).where(
+            SyncQueue.tracker_name == tracker_name,
+            SyncQueue.status == "pending"
+        ).order_by(SyncQueue.created_at).limit(SYNC_PROCESS_BATCH_SIZE)
+    ).all()
+
+    processed = 0
+    failed = 0
+
+    for item in queue_items:
+        item.status = "processing"
+        session.add(item)
+        session.commit()
+
+        mapping = get_mapping(session, item.manga_id, tracker_name)
+        if not mapping:
+            item.retry_count += 1
+            item.status = "failed"
+            item.error_message = "Manga not mapped to tracker"
+            item.processed_at = datetime.utcnow()
+            failed += 1
+            session.add(item)
+            session.commit()
+            continue
+
+        try:
+            access_token = await get_valid_access_token(session, tracker, credential)
+            success = await tracker.update_progress(access_token, mapping.tracker_manga_id, item.chapter_number)
+            if not success:
+                raise Exception("Tracker rejected update")
+
+            item.status = "completed"
+            item.error_message = None
+            item.processed_at = datetime.utcnow()
+            mapping.last_synced_chapter = item.chapter_number
+            mapping.last_synced_at = datetime.utcnow()
+            mapping.sync_status = "synced"
+            processed += 1
+        except Exception as e:
+            item.retry_count += 1
+            item.error_message = str(e)
+            item.processed_at = datetime.utcnow()
+            if item.retry_count >= SYNC_MAX_RETRIES:
+                item.status = "failed"
+                mapping.sync_status = "error"
+            else:
+                item.status = "pending"
+                mapping.sync_status = "pending"
+            failed += 1
+
+        session.add(item)
+        session.add(mapping)
+        session.commit()
+
+    remaining = session.exec(
+        select(SyncQueue).where(
+            SyncQueue.tracker_name == tracker_name,
+            SyncQueue.status == "pending"
+        )
+    ).all()
+
+    return {"processed": processed, "failed": failed, "remaining": len(remaining)}
