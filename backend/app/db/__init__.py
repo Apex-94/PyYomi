@@ -4,7 +4,7 @@ Provides database configuration, models, and migration utilities.
 """
 
 from .database import SQLModel, engine, get_session, init_db
-from .models import Manga, Chapter, LibraryEntry, ReadingProgress, History, Category, MangaCategory, Download, Setting
+from .models import Manga, Chapter, LibraryEntry, ReadingProgress, History, Category, MangaCategory, Download, Setting, AniListMetadataCache
 
 __all__ = [
     "SQLModel",
@@ -19,5 +19,6 @@ __all__ = [
     "Category",
     "MangaCategory",
     "Download",
-    "Setting"
+    "Setting",
+    "AniListMetadataCache",
 ]

@@ -27,6 +27,7 @@ DEFAULTS = {
     "images.cache.enabled": True,
     "images.cache.max_bytes": 536870912,
     "images.cache.ttl_hours": 720,
+    "ui.mode": "classic",
 }
 
 

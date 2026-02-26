@@ -141,7 +141,6 @@ function PageImage({
         src={displayUrl}
         alt={`p${index + 1}`}
         loading={mode === "single" ? "eager" : "lazy"}
-        fetchPriority={mode === "single" ? "high" : "auto"}
         style={{
           width: mode === "scroll" ? "100%" : "auto",
           height: mode === "scroll" ? "auto" : "min(92vh, 1200px)",
