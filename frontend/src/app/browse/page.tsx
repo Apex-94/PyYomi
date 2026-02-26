@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, addToLibrary, getProxyUrl } from "../../lib/api";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { MangaCard } from "../../components/MangaCard";
@@ -22,6 +22,10 @@ import { useLibraryState } from "../../hooks/useLibraryState";
 import LibraryFeedbackSnackbar from "../../components/LibraryFeedbackSnackbar";
 import SetCategoriesPicker from "../../components/SetCategoriesPicker";
 import { LibraryAddResponse } from "../../types";
+import { useMangaIDEPreview } from "../../components/mangaide/MangaIDEPreviewContext";
+import { useColorMode } from "../../theme/ColorModeContext";
+import { useAniListMetadataMap } from "../../hooks/useAniListMetadataMap";
+import MangaIDECenterTable from "../../components/mangaide/MangaIDECenterTable";
 
 interface MangaCardItem {
   title: string;
@@ -30,6 +34,7 @@ interface MangaCardItem {
   source: string;
   description?: string;
   genres?: string[];
+  status?: string;
 }
 
 function toMangaCardPayload(item: MangaCardItem) {
@@ -41,10 +46,20 @@ function toMangaCardPayload(item: MangaCardItem) {
   };
 }
 
+function normalizeStatus(raw?: string): "Ongoing" | "Completed" | "Hiatus" {
+  const value = (raw || "").trim().toLowerCase();
+  if (value.includes("complete")) return "Completed";
+  if (value.includes("hiatus")) return "Hiatus";
+  return "Ongoing";
+}
+
 export default function BrowsePage() {
   const navigate = useNavigate();
+  const { setPreview } = useMangaIDEPreview();
+  const { uiMode } = useColorMode();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<"latest" | "popular" | "random">("latest");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [activeFilters, setActiveFilters] = useState<any[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -54,6 +69,9 @@ export default function BrowsePage() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerManga, setPickerManga] = useState<{ id?: number; title?: string }>({});
+  const [selectedBrowseUrl, setSelectedBrowseUrl] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<"title" | "status" | "lastRead" | "source">("title");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [pendingUrls, setPendingUrls] = useState<Record<string, boolean>>({});
 
@@ -97,7 +115,19 @@ export default function BrowsePage() {
   const clearFilters = () => {
     setActiveFilters([]);
     setQ("");
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("q");
+      return next;
+    });
   };
+
+  useEffect(() => {
+    const urlQ = searchParams.get("q") ?? "";
+    if (urlQ !== q) {
+      setQ(urlQ);
+    }
+  }, [searchParams]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["browse", tab, q, activeFilters, activeSource?.id],
@@ -168,14 +198,72 @@ export default function BrowsePage() {
   });
 
   const browseItems: MangaCardItem[] = useMemo(() => data?.results || [], [data?.results]);
+  const isMangaIDE = uiMode === "mangaide";
+  const { byKey: browseMetaByUrl } = useAniListMetadataMap(
+    browseItems.map((item) => ({ key: item.url, title: item.title }))
+  );
+
+  const publishPreview = (item: MangaCardItem) => {
+    const meta = browseMetaByUrl.get(item.url);
+    const inLibrary = isInLibrary(item.url);
+    setPreview({
+      title: item.title,
+      coverUrl: item.thumbnail_url ? getProxyUrl(item.thumbnail_url, item.source) : meta?.cover_url,
+      status: meta?.status || normalizeStatus(item.status),
+      rating: meta?.rating_10,
+      source: item.source,
+      author: meta?.author || undefined,
+      artist: meta?.artist || undefined,
+      description: meta?.description || item.description,
+      mangaUrl: item.url,
+      sourceId: item.source,
+      chapters: meta?.chapters,
+      inLibrary,
+    });
+  };
+
+  const sortedBrowseItems = useMemo(() => {
+    const rows = [...browseItems];
+    rows.sort((a, b) => {
+      let left = "";
+      let right = "";
+      if (sortKey === "title") {
+        left = a.title || "";
+        right = b.title || "";
+      } else if (sortKey === "status") {
+        left = (browseMetaByUrl.get(a.url)?.status || normalizeStatus(a.status)) || "";
+        right = (browseMetaByUrl.get(b.url)?.status || normalizeStatus(b.status)) || "";
+      } else if (sortKey === "source") {
+        left = a.source || "";
+        right = b.source || "";
+      } else {
+        left = "";
+        right = "";
+      }
+      const cmp = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [browseItems, browseMetaByUrl, sortDirection, sortKey]);
+
+  const toggleSort = (key: "title" | "status" | "lastRead" | "source") => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: SECTION_GAP }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.5rem", md: "1.9rem" } }}>
-          Browse Manga
-        </Typography>
-      </Box>
+      {!isMangaIDE && (
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: SECTION_GAP }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.5rem", md: "1.9rem" } }}>
+            Browse Manga
+          </Typography>
+        </Box>
+      )}
 
       <Paper
         sx={{
@@ -217,7 +305,21 @@ export default function BrowsePage() {
           placeholder="Search manga"
           size="small"
           fullWidth
-          onKeyDown={(e) => e.key === "Enter" && refetch()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const normalized = q.trim();
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                if (normalized) {
+                  next.set("q", normalized);
+                } else {
+                  next.delete("q");
+                }
+                return next;
+              });
+              void refetch();
+            }
+          }}
           sx={{
             "& .MuiOutlinedInput-root": {
               minHeight: 40,
@@ -349,6 +451,41 @@ export default function BrowsePage() {
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
           <CircularProgress color="primary" />
         </Box>
+      ) : isMangaIDE ? (
+        <Box sx={{ mt: 3 }}>
+          <MangaIDECenterTable
+            title={`Browse - ${activeSource?.id || "Source"}`}
+            itemCount={sortedBrowseItems.length}
+            rows={sortedBrowseItems.map((item) => {
+              const meta = browseMetaByUrl.get(item.url);
+              const ratingText = typeof meta?.rating_10 === "number" ? `${meta.rating_10.toFixed(1)}/10` : "--";
+              const status = meta?.status || normalizeStatus(item.status);
+              return {
+                id: item.url,
+                title: item.title,
+                ratingText,
+                status,
+                lastReadText: "-",
+                source: item.source,
+              };
+            })}
+            selectedRowId={selectedBrowseUrl}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={toggleSort}
+            onRowClick={(row) => {
+              const item = sortedBrowseItems.find((entry) => entry.url === row.id);
+              if (!item) return;
+              setSelectedBrowseUrl(item.url);
+              publishPreview(item);
+            }}
+            onRowDoubleClick={(row) => {
+              const item = sortedBrowseItems.find((entry) => entry.url === row.id);
+              if (!item) return;
+              navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
+            }}
+          />
+        </Box>
       ) : (
         <Box
           sx={{
@@ -364,36 +501,41 @@ export default function BrowsePage() {
           }}
         >
           {browseItems.map((it, i) => {
+            const meta = browseMetaByUrl.get(it.url);
             const inLibrary = isInLibrary(it.url);
             const pending = !!pendingUrls[it.url];
             const libraryRecord = getLibraryManga(it.url);
             return (
-              <MangaCard
+              <Box
                 key={`${it.url}-${i}`}
-                manga={{
-                  id: it.url,
-                  title: it.title,
-                  altTitle: "",
-                  author: null,
-                  status: "Ongoing",
-                  genres: it.genres || [],
-                  description: "",
-                  coverUrl: it.thumbnail_url ? getProxyUrl(it.thumbnail_url, it.source) : "",
-                  rating: 0,
-                  chapters: [],
-                }}
-                mangaSource={it.source}
-                libraryButtonState={pending ? 'adding' : (inLibrary ? 'in_library' : 'not_in_library')}
-                onAddToLibrary={() => addMutation.mutate(it)}
-                onOpenInLibrary={() => navigate('/library')}
-                onSetCategories={() => {
-                  setPickerManga({ id: libraryRecord?.id, title: it.title });
-                  setPickerOpen(true);
-                }}
-                onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
-                actionMode="auto"
-                showStatusBadge
-              />
+                onClick={() => publishPreview(it)}
+              >
+                <MangaCard
+                  manga={{
+                    id: it.url,
+                    title: it.title,
+                    altTitle: "",
+                    author: meta?.author || null,
+                    status: (meta?.status as "Ongoing" | "Completed" | "Hiatus") || normalizeStatus(it.status),
+                    genres: it.genres || [],
+                    description: meta?.description || "",
+                    coverUrl: it.thumbnail_url ? getProxyUrl(it.thumbnail_url, it.source) : "",
+                    rating: meta?.rating_10 || 0,
+                    chapters: [],
+                  }}
+                  mangaSource={it.source}
+                  libraryButtonState={pending ? 'adding' : (inLibrary ? 'in_library' : 'not_in_library')}
+                  onAddToLibrary={() => addMutation.mutate(it)}
+                  onOpenInLibrary={() => navigate('/library')}
+                  onSetCategories={() => {
+                    setPickerManga({ id: libraryRecord?.id, title: it.title });
+                    setPickerOpen(true);
+                  }}
+                  onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
+                  actionMode="auto"
+                  showStatusBadge
+                />
+              </Box>
             );
           })}
         </Box>
