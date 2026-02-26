@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -42,6 +43,10 @@ import {
 } from '../lib/api';
 import { Category, Manga } from '../types';
 import { MangaCard } from './MangaCard';
+import { useAniListMetadataMap } from '../hooks/useAniListMetadataMap';
+import { useColorMode } from '../theme/ColorModeContext';
+import { useMangaIDEPreview } from './mangaide/MangaIDEPreviewContext';
+import MangaIDECenterTable from './mangaide/MangaIDECenterTable';
 
 interface CategoryMangaItem {
   id: number;
@@ -53,10 +58,21 @@ interface CategoryMangaItem {
   author?: string | null;
 }
 
+function normalizeStatus(raw?: string | null): Manga['status'] {
+  const value = (raw || '').trim().toLowerCase();
+  if (value.includes('complete')) return 'Completed';
+  if (value.includes('hiatus')) return 'Hiatus';
+  return 'Ongoing';
+}
+
 const CategoriesPage: React.FC = () => {
   type SnackbarSeverity = 'success' | 'error';
   const theme = useTheme();
+  const navigate = useNavigate();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
+  const { uiMode } = useColorMode();
+  const { setPreview } = useMangaIDEPreview();
+  const [searchParams] = useSearchParams();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -67,15 +83,32 @@ const CategoriesPage: React.FC = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingManga, setLoadingManga] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedRowUrl, setSelectedRowUrl] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<'title' | 'status' | 'lastRead' | 'source'>('title');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: SnackbarSeverity }>({
     open: false,
     message: '',
     severity: 'success',
   });
+  const { byKey: metadataByUrl } = useAniListMetadataMap(
+    categoryManga.map((item) => ({ key: item.url, title: item.title }))
+  );
+  const isMangaIDE = uiMode === 'mangaide';
 
   useEffect(() => {
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    const categoryName = (searchParams.get('name') || '').trim().toLowerCase();
+    if (!categoryName || categories.length === 0) return;
+    const match = categories.find((c) => c.name.trim().toLowerCase() === categoryName);
+    if (!match) return;
+    if (selectedCategory?.id === match.id) return;
+    setSelectedCategory(match);
+    loadCategoryManga(match.id);
+  }, [searchParams, categories]);
 
   const loadCategories = async () => {
     setLoadingCategories(true);
@@ -92,6 +125,7 @@ const CategoriesPage: React.FC = () => {
 
   const loadCategoryManga = async (categoryId: number) => {
     setLoadingManga(true);
+    setSelectedRowUrl(null);
     try {
       const data = await getCategoryManga(categoryId);
       setCategoryManga(data as CategoryMangaItem[]);
@@ -185,6 +219,57 @@ const CategoriesPage: React.FC = () => {
   };
 
   const isCreateDisabled = loadingCategories || loadingManga || saving;
+
+  const sortedCategoryManga = useMemo(() => {
+    const rows = [...categoryManga];
+    rows.sort((a, b) => {
+      let left = '';
+      let right = '';
+      if (sortKey === 'title') {
+        left = a.title || '';
+        right = b.title || '';
+      } else if (sortKey === 'status') {
+        left = metadataByUrl.get(a.url)?.status || normalizeStatus(a.status);
+        right = metadataByUrl.get(b.url)?.status || normalizeStatus(b.status);
+      } else if (sortKey === 'source') {
+        left = a.source || '';
+        right = b.source || '';
+      } else {
+        left = '';
+        right = '';
+      }
+      const cmp = left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [categoryManga, metadataByUrl, sortDirection, sortKey]);
+
+  const toggleSort = (key: 'title' | 'status' | 'lastRead' | 'source') => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection('asc');
+  };
+
+  const publishPreview = (manga: CategoryMangaItem) => {
+    const meta = metadataByUrl.get(manga.url);
+    setPreview({
+      title: manga.title,
+      coverUrl: manga.thumbnail_url ? getProxyUrl(manga.thumbnail_url, manga.source) : meta?.cover_url,
+      status: meta?.status || normalizeStatus(manga.status),
+      rating: meta?.rating_10,
+      source: manga.source,
+      author: meta?.author || manga.author || undefined,
+      artist: meta?.artist || undefined,
+      description: meta?.description || undefined,
+      mangaUrl: manga.url,
+      sourceId: manga.source,
+      chapters: meta?.chapters ?? undefined,
+      inLibrary: true,
+    });
+  };
 
   const categoryList = (
     <Paper sx={{ p: 2, borderRadius: 2, border: 1, borderColor: 'divider', height: '100%' }}>
@@ -300,9 +385,25 @@ const CategoriesPage: React.FC = () => {
                 Manga in Category
               </Typography>
             </Box>
-            <Typography variant="body2" color="text.secondary">
-              {categoryManga.length} {categoryManga.length === 1 ? 'item' : 'items'}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {categoryManga.length} {categoryManga.length === 1 ? 'item' : 'items'}
+              </Typography>
+              {isMangaIDE && selectedRowUrl && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => {
+                    const selected = categoryManga.find((entry) => entry.url === selectedRowUrl);
+                    if (!selected) return;
+                    handleRemoveMangaFromCategory(selected.id);
+                  }}
+                >
+                  Remove Selected
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {loadingManga ? (
@@ -315,6 +416,39 @@ const CategoriesPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2 }}>
               This category is empty. Add manga from your library to organize it.
             </Typography>
+          ) : isMangaIDE ? (
+            <MangaIDECenterTable
+              title={`Manga List / ${selectedCategory.name}`}
+              itemCount={sortedCategoryManga.length}
+              rows={sortedCategoryManga.map((manga) => {
+                const meta = metadataByUrl.get(manga.url);
+                const ratingText = typeof meta?.rating_10 === 'number' ? `${meta.rating_10.toFixed(1)}/10` : '--';
+                const status = meta?.status || normalizeStatus(manga.status);
+                return {
+                  id: manga.url,
+                  title: manga.title,
+                  ratingText,
+                  status,
+                  lastReadText: '-',
+                  source: manga.source,
+                };
+              })}
+              selectedRowId={selectedRowUrl}
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSortChange={toggleSort}
+              onRowClick={(row) => {
+                const manga = sortedCategoryManga.find((entry) => entry.url === row.id);
+                if (!manga) return;
+                setSelectedRowUrl(manga.url);
+                publishPreview(manga);
+              }}
+              onRowDoubleClick={(row) => {
+                const manga = sortedCategoryManga.find((entry) => entry.url === row.id);
+                if (!manga) return;
+                navigate(`/manga?url=${encodeURIComponent(manga.url)}&source=${encodeURIComponent(manga.source)}`);
+              }}
+            />
           ) : (
             <Box
               sx={{
@@ -327,19 +461,21 @@ const CategoriesPage: React.FC = () => {
                 },
               }}
             >
-              {categoryManga.map((manga) => (
+              {categoryManga.map((manga) => {
+                const meta = metadataByUrl.get(manga.url);
+                return (
                 <MangaCard
                   key={manga.id}
                   manga={{
                     id: manga.url,
                     title: manga.title,
                     altTitle: '',
-                    author: manga.author || null,
-                    status: (manga.status as Manga['status']) || 'Ongoing',
+                    author: meta?.author || manga.author || null,
+                    status: ((meta?.status || manga.status) as Manga['status']) || 'Ongoing',
                     genres: [manga.source],
-                    description: '',
+                    description: meta?.description || '',
                     coverUrl: manga.thumbnail_url ? getProxyUrl(manga.thumbnail_url, manga.source) : '',
-                    rating: 0,
+                    rating: meta?.rating_10 || 0,
                     chapters: [],
                   }}
                   mangaSource={manga.source}
@@ -348,7 +484,8 @@ const CategoriesPage: React.FC = () => {
                   onRemove={() => handleRemoveMangaFromCategory(manga.id)}
                   actionMode="auto"
                 />
-              ))}
+                );
+              })}
             </Box>
           )}
         </>
@@ -376,10 +513,12 @@ const CategoriesPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700, fontSize: { xs: '1.5rem', md: '1.9rem' } }}>
-        <LibraryBooksIcon />
-        Library Organization
-      </Typography>
+      {!isMangaIDE && (
+        <Typography variant="h4" component="h1" sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700, fontSize: { xs: '1.5rem', md: '1.9rem' } }}>
+          <LibraryBooksIcon />
+          Library Organization
+        </Typography>
+      )}
 
       {isCompact ? (
         <Box>{selectedCategory ? categoryDetail : categoryList}</Box>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api, getProxyUrl } from "../../lib/api";
 import { BookOpen } from "lucide-react";
@@ -15,6 +15,10 @@ import { Manga } from "../../types";
 import { useLibraryState } from "../../hooks/useLibraryState";
 import SetCategoriesPicker from "../../components/SetCategoriesPicker";
 import LibraryFeedbackSnackbar from "../../components/LibraryFeedbackSnackbar";
+import { useColorMode } from "../../theme/ColorModeContext";
+import { useMangaIDEPreview } from "../../components/mangaide/MangaIDEPreviewContext";
+import { useAniListMetadataMap } from "../../hooks/useAniListMetadataMap";
+import MangaIDECenterTable from "../../components/mangaide/MangaIDECenterTable";
 
 interface LibraryItem {
   id: number;
@@ -22,29 +26,44 @@ interface LibraryItem {
   url: string;
   thumbnail_url?: string;
   source: string;
+  status?: string | null;
+  last_read_chapter?: number;
+  last_read_at?: string | null;
 }
 
-function toManga(item: LibraryItem): Manga {
+function normalizeStatus(raw?: string | null): Manga["status"] {
+  const value = (raw || "").trim().toLowerCase();
+  if (value.includes("complete")) return "Completed";
+  if (value.includes("hiatus")) return "Hiatus";
+  return "Ongoing";
+}
+
+function toManga(item: LibraryItem, meta?: { author?: string; status?: string; description?: string; rating_10?: number }): Manga {
   return {
     id: item.url,
     title: item.title,
     altTitle: "",
-    author: null,
-    status: "Ongoing",
+    author: meta?.author || null,
+    status: (meta?.status as Manga["status"]) || normalizeStatus(item.status),
     genres: [item.source],
-    description: "",
+    description: meta?.description || "",
     coverUrl: item.thumbnail_url ? getProxyUrl(item.thumbnail_url, item.source) : "",
-    rating: 0,
+    rating: meta?.rating_10 || 0,
     chapters: [],
   };
 }
 
 export default function LibraryPage() {
   const navigate = useNavigate();
+  const { uiMode } = useColorMode();
+  const { setPreview } = useMangaIDEPreview();
   const { libraryQuery, removeByUrl } = useLibraryState();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerManga, setPickerManga] = useState<{ id?: number; title?: string }>({});
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [selectedRowUrl, setSelectedRowUrl] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<"title" | "status" | "lastRead" | "source">("title");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const removeMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -58,20 +77,84 @@ export default function LibraryPage() {
 
   const data = libraryQuery.data as LibraryItem[] | undefined;
   const isLoading = libraryQuery.isLoading;
+  const isMangaIDE = uiMode === "mangaide";
+
+  const formatLastRead = (item: LibraryItem) => {
+    if (!item.last_read_at) return "-";
+    const parsed = new Date(item.last_read_at);
+    if (Number.isNaN(parsed.getTime())) return `Ch. ${item.last_read_chapter ?? "-"}`;
+    return `Ch. ${item.last_read_chapter ?? "-"} (${parsed.toLocaleDateString()})`;
+  };
+
+  const sortedData = useMemo(() => {
+    if (!data) return [];
+    const rows = [...data];
+    rows.sort((a, b) => {
+      let left = "";
+      let right = "";
+      if (sortKey === "title") {
+        left = a.title || "";
+        right = b.title || "";
+      } else if (sortKey === "status") {
+        left = normalizeStatus(a.status);
+        right = normalizeStatus(b.status);
+      } else if (sortKey === "source") {
+        left = a.source || "";
+        right = b.source || "";
+      } else {
+        left = a.last_read_at || "";
+        right = b.last_read_at || "";
+      }
+      const cmp = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [data, sortDirection, sortKey]);
+
+  const { byKey: metaByUrl } = useAniListMetadataMap((data || []).map((item) => ({ key: item.url, title: item.title })));
+
+  const publishPreview = (item: LibraryItem) => {
+    const meta = metaByUrl.get(item.url);
+    setPreview({
+      title: item.title,
+      coverUrl: item.thumbnail_url ? getProxyUrl(item.thumbnail_url, item.source) : meta?.cover_url,
+      status: meta?.status || normalizeStatus(item.status),
+      rating: meta?.rating_10,
+      source: item.source,
+      author: meta?.author || undefined,
+      artist: meta?.artist || undefined,
+      description: meta?.description || undefined,
+      mangaUrl: item.url,
+      sourceId: item.source,
+      chapters: meta?.chapters ?? item.last_read_chapter ?? undefined,
+      inLibrary: true,
+    });
+  };
+
+  const toggleSort = (key: "title" | "status" | "lastRead" | "source") => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   return (
     <Box>
-      <Typography
-        variant="h1"
-        sx={{
-          fontWeight: 700,
-          mb: 3,
-          fontSize: { xs: "1.5rem", md: "1.9rem" },
-          lineHeight: 1.2,
-        }}
-      >
-        My Library
-      </Typography>
+      {!isMangaIDE && (
+        <Typography
+          variant="h1"
+          sx={{
+            fontWeight: 700,
+            mb: 3,
+            fontSize: { xs: "1.5rem", md: "1.9rem" },
+            lineHeight: 1.2,
+          }}
+        >
+          My Library
+        </Typography>
+      )}
 
       {isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
@@ -122,7 +205,7 @@ export default function LibraryPage() {
             </Paper>
           )}
 
-          {data && data.length > 0 && (
+          {data && data.length > 0 && !isMangaIDE && (
             <Box
               sx={{
                 display: "grid",
@@ -138,12 +221,12 @@ export default function LibraryPage() {
               {data.map((it) => (
                 <MangaCard
                   key={it.url}
-                  manga={toManga(it)}
+                  manga={toManga(it, metaByUrl.get(it.url))}
                   mangaSource={it.source}
                   showStatusBadge={false}
                   actionMode="auto"
                   libraryButtonState="in_library"
-                  onOpenInLibrary={() => navigate('/library')}
+                  onOpenInLibrary={() => navigate("/library")}
                   onSetCategories={() => {
                     setPickerManga({ id: it.id, title: it.title });
                     setPickerOpen(true);
@@ -152,6 +235,41 @@ export default function LibraryPage() {
                 />
               ))}
             </Box>
+          )}
+
+          {data && data.length > 0 && isMangaIDE && (
+            <MangaIDECenterTable
+              title="Manga List / All"
+              itemCount={data.length}
+              rows={sortedData.map((item) => {
+                const meta = metaByUrl.get(item.url);
+                const status = meta?.status || normalizeStatus(item.status);
+                const ratingText = typeof meta?.rating_10 === "number" ? `${meta.rating_10.toFixed(1)}/10` : "--";
+                return {
+                  id: item.url,
+                  title: item.title,
+                  ratingText,
+                  status,
+                  lastReadText: formatLastRead(item),
+                  source: item.source,
+                };
+              })}
+              selectedRowId={selectedRowUrl}
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSortChange={toggleSort}
+              onRowClick={(row) => {
+                const item = sortedData.find((entry) => entry.url === row.id);
+                if (!item) return;
+                setSelectedRowUrl(item.url);
+                publishPreview(item);
+              }}
+              onRowDoubleClick={(row) => {
+                const item = sortedData.find((entry) => entry.url === row.id);
+                if (!item) return;
+                navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
+              }}
+            />
           )}
         </>
       )}

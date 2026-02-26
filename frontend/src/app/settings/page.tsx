@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography, Divider } from '@mui/material';
 import { getAppSettings, updateAppSetting } from '../../lib/api';
+import { useColorMode } from '../../theme/ColorModeContext';
 import TrackerSettings from '../../components/TrackerSettings';
 import BackupRestore from '../../components/BackupRestore';
 
@@ -9,6 +10,7 @@ const isAbsolutePath = (value: string): boolean =>
   value.trim().length > 0 && (/^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('/'));
 
 export default function SettingsPage() {
+  const { setUiMode, mode, setMode } = useColorMode();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['app-settings'],
     queryFn: getAppSettings,
@@ -22,6 +24,8 @@ export default function SettingsPage() {
   const [cacheEnabled, setCacheEnabled] = useState('true');
   const [cacheMaxBytes, setCacheMaxBytes] = useState('536870912');
   const [cacheTtlHours, setCacheTtlHours] = useState('720');
+  const [uiMode, setUIMode] = useState<'classic' | 'mangaide'>('classic');
+  const [colorMode, setColorMode] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     if (!data) return;
@@ -34,7 +38,11 @@ export default function SettingsPage() {
     setCacheEnabled(getStr('images.cache.enabled', true));
     setCacheMaxBytes(getStr('images.cache.max_bytes', 536870912));
     setCacheTtlHours(getStr('images.cache.ttl_hours', 720));
-  }, [data]);
+    const rawUiMode = getStr('ui.mode', 'classic');
+    setUIMode(rawUiMode === 'mangaide' ? 'mangaide' : 'classic');
+    const rawColorMode = getStr('ui.color_mode', mode);
+    setColorMode(rawColorMode === 'dark' ? 'dark' : 'light');
+  }, [data, mode]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -50,9 +58,13 @@ export default function SettingsPage() {
         updateAppSetting('images.cache.enabled', cacheEnabled === 'true'),
         updateAppSetting('images.cache.max_bytes', Number(cacheMaxBytes)),
         updateAppSetting('images.cache.ttl_hours', Number(cacheTtlHours)),
+        updateAppSetting('ui.mode', uiMode),
+        updateAppSetting('ui.color_mode', colorMode),
       ]);
     },
     onSuccess: async () => {
+      setUiMode(uiMode);
+      setMode(colorMode);
       await refetch();
     },
   });
@@ -156,6 +168,26 @@ export default function SettingsPage() {
               >
                 <MenuItem value="ltr">Left to right (LTR)</MenuItem>
                 <MenuItem value="rtl">Right to left (RTL)</MenuItem>
+              </TextField>
+              <TextField
+                label="User Interface"
+                select
+                value={uiMode}
+                onChange={(e) => setUIMode(e.target.value as 'classic' | 'mangaide')}
+                helperText="Choose between classic layout and IDE layout."
+              >
+                <MenuItem value="classic">Classic</MenuItem>
+                <MenuItem value="mangaide">IDE</MenuItem>
+              </TextField>
+              <TextField
+                label="Color Mode"
+                select
+                value={colorMode}
+                onChange={(e) => setColorMode(e.target.value as 'light' | 'dark')}
+                helperText="Choose light or dark theme."
+              >
+                <MenuItem value="light">Light</MenuItem>
+                <MenuItem value="dark">Dark</MenuItem>
               </TextField>
 
               <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
