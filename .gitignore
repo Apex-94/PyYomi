@@ -29,6 +29,7 @@ backend/dist/
 backend/build/
 backend/__pycache__/
 backend/.encryption_key
+backend/error_logs/
 data/
 .tmp/
 
@@ -57,3 +58,6 @@ electron/release-electron-*/
 *.sw?
 *.pyc
 __pycache__/
+
+# Example/demo projects (local only)
+mangaIDE_UI_example/
