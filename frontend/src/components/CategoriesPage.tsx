@@ -437,13 +437,15 @@ const CategoriesPage: React.FC = () => {
               sortKey={sortKey}
               sortDirection={sortDirection}
               onSortChange={toggleSort}
-              onRowClick={(row) => {
+              onRowClick={(e, row) => {
+                e.stopPropagation();
                 const manga = sortedCategoryManga.find((entry) => entry.url === row.id);
                 if (!manga) return;
                 setSelectedRowUrl(manga.url);
                 publishPreview(manga);
               }}
-              onRowDoubleClick={(row) => {
+              onRowDoubleClick={(e, row) => {
+                e.stopPropagation();
                 const manga = sortedCategoryManga.find((entry) => entry.url === row.id);
                 if (!manga) return;
                 navigate(`/manga?url=${encodeURIComponent(manga.url)}&source=${encodeURIComponent(manga.source)}`);

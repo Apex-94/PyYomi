@@ -1,5 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLibraryState, LIBRARY_QUERY_KEY } from '../../hooks/useLibraryState';
+import { addToLibrary } from '../../lib/api';
 import {
   Box,
   Button,
@@ -50,6 +53,31 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
   const [explorerFilter, setExplorerFilter] = useState('');
   const [preview, setPreview] = useState<MangaIDEPreviewData | null>(null);
   const isCompact = useMediaQuery('(max-width:1023px)');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Clear preview when clicking outside the preview panel and not on a manga item
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      // Only handle clicks when preview is showing
+      if (!preview?.mangaUrl) return;
+      
+      const target = e.target as HTMLElement;
+      
+      // Check if click is on a manga item - don't clear
+      const mangaItem = target.closest('[data-manga-item]');
+      if (mangaItem) return;
+      
+      // Check if click is on the preview panel - don't clear
+      const previewPanel = document.querySelector('[data-preview-panel]');
+      if (previewPanel?.contains(target)) return;
+      
+      // Otherwise clear the preview
+      setPreview(null);
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [preview]);
 
   const sectionTitle = useMemo(() => {
     const item = menuItems.find((entry) => entry.path === location.pathname);
@@ -168,7 +196,7 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
         sx={{
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: '280px minmax(0,1fr) 340px',
+          gridTemplateColumns: preview?.mangaUrl ? '280px minmax(0,1fr) 340px' : '280px minmax(0,1fr)',
           overflow: 'hidden',
         }}
       >
@@ -237,9 +265,13 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
           </Box>
         </Box>
 
-        <Box sx={{ minWidth: 0, minHeight: 0, overflow: 'auto', p: 2 }}>{children}</Box>
+        <Box 
+          ref={contentRef}
+          sx={{ minWidth: 0, minHeight: 0, overflow: 'auto', p: 2, flex: 1 }} 
+        >{children}</Box>
 
         <Box
+          data-preview-panel
           sx={{
             borderLeft: 1,
             borderColor: 'divider',
@@ -249,12 +281,16 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
             minWidth: 0,
           }}
         >
-          <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-              Preview - {sectionTitle}
-            </Typography>
-          </Box>
-          <PreviewPanel />
+          {preview?.mangaUrl && (
+            <>
+              <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  Preview - {sectionTitle}
+                </Typography>
+              </Box>
+              <PreviewPanel />
+            </>
+          )}
         </Box>
       </Box>
 
@@ -284,6 +320,29 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
 
 function PreviewPanel() {
   const { preview } = useMangaIDEPreview();
+  const navigate = useNavigate();
+  const { isInLibrary } = useLibraryState();
+  const queryClient = useQueryClient();
+  
+  // Mutation for adding to library
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      if (!preview?.mangaUrl || !preview?.title) return;
+      await addToLibrary({
+        title: preview.title,
+        url: preview.mangaUrl,
+        thumbnail_url: preview.coverUrl,
+        source: preview.sourceId || preview.source || '',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: LIBRARY_QUERY_KEY });
+    },
+  });
+  
+  // Check if manga is in library
+  const inLibrary = preview?.mangaUrl ? isInLibrary(preview.mangaUrl) : false;
+  
   if (!preview) {
     return (
       <Box sx={{ p: 2, color: 'text.secondary', fontSize: 13 }}>
@@ -291,6 +350,12 @@ function PreviewPanel() {
       </Box>
     );
   }
+
+  const handleAddToLibrary = async () => {
+    if (!preview?.mangaUrl || !preview?.title) return;
+    // Add directly to library via API
+    addMutation.mutate();
+  };
 
   return (
     <Box sx={{ p: 2, overflowY: 'auto' }}>
@@ -312,15 +377,68 @@ function PreviewPanel() {
         />
       )}
       <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 1 }}>{preview.title}</Typography>
+      
+      {/* Add to Library button - show in preview when manga is selected */}
+      {preview.mangaUrl && (
+        <Box sx={{ mb: 1.5 }}>
+          {inLibrary ? (
+            <Box sx={{ 
+              px: 1.5, 
+              py: 0.5, 
+              borderRadius: 1, 
+              bgcolor: 'success.main',
+              color: 'white',
+              fontSize: 12,
+              textAlign: 'center'
+            }}>
+              In Library
+            </Box>
+          ) : addMutation.isPending ? (
+            <Box sx={{ 
+              px: 1.5, 
+              py: 0.5, 
+              borderRadius: 1, 
+              bgcolor: 'primary.main',
+              color: 'white',
+              fontSize: 12,
+              textAlign: 'center',
+              opacity: 0.7
+            }}>
+              Adding...
+            </Box>
+          ) : (
+            <Box
+              onClick={() => handleAddToLibrary()}
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                bgcolor: 'primary.main',
+                color: 'white',
+                fontSize: 12,
+                textAlign: 'center',
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'primary.dark' }
+              }}
+            >
+              Add to Library
+            </Box>
+          )}
+        </Box>
+      )}
+      
       <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 0.5 }}>
         Status: {preview.status || '-'}
       </Typography>
       <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 0.5 }}>
         Rating: {typeof preview.rating === 'number' ? `${preview.rating.toFixed(1)}/10` : '-'}
       </Typography>
-      <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 0.5 }}>
-        Source: {preview.source || '-'}
-      </Typography>
+      {/* Show source when manga is selected */}
+      {preview.mangaUrl && (
+        <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 0.5 }}>
+          Source: {preview.source || '-'}
+        </Typography>
+      )}
       <Typography sx={{ fontSize: 13, color: 'text.secondary', mb: 1.5 }}>
         Author: {preview.author || '-'}
       </Typography>

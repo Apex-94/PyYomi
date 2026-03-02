@@ -20,8 +20,8 @@ interface MangaIDECenterTableProps {
   sortKey?: MangaIDECenterSortKey;
   sortDirection?: "asc" | "desc";
   onSortChange?: (key: MangaIDECenterSortKey) => void;
-  onRowClick?: (row: MangaIDECenterRow) => void;
-  onRowDoubleClick?: (row: MangaIDECenterRow) => void;
+  onRowClick?: (e: React.MouseEvent, row: MangaIDECenterRow) => void;
+  onRowDoubleClick?: (e: React.MouseEvent, row: MangaIDECenterRow) => void;
 }
 
 export default function MangaIDECenterTable({
@@ -93,9 +93,10 @@ export default function MangaIDECenterTable({
           const selected = selectedRowId === row.id;
           return (
             <Box
+              data-manga-item
               key={row.id}
-              onClick={() => onRowClick?.(row)}
-              onDoubleClick={() => onRowDoubleClick?.(row)}
+              onClick={(e) => onRowClick?.(e, row)}
+              onDoubleClick={(e) => onRowDoubleClick?.(e, row)}
               sx={{
                 display: "grid",
                 gridTemplateColumns: "minmax(260px,2fr) 120px 120px 210px 140px",

@@ -258,13 +258,15 @@ export default function LibraryPage() {
               sortKey={sortKey}
               sortDirection={sortDirection}
               onSortChange={toggleSort}
-              onRowClick={(row) => {
+              onRowClick={(e, row) => {
+                e.stopPropagation();
                 const item = sortedData.find((entry) => entry.url === row.id);
                 if (!item) return;
                 setSelectedRowUrl(item.url);
                 publishPreview(item);
               }}
-              onRowDoubleClick={(row) => {
+              onRowDoubleClick={(e, row) => {
+                e.stopPropagation();
                 const item = sortedData.find((entry) => entry.url === row.id);
                 if (!item) return;
                 navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);

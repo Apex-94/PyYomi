@@ -473,13 +473,15 @@ export default function BrowsePage() {
             sortKey={sortKey}
             sortDirection={sortDirection}
             onSortChange={toggleSort}
-            onRowClick={(row) => {
+            onRowClick={(e, row) => {
+              e.stopPropagation();
               const item = sortedBrowseItems.find((entry) => entry.url === row.id);
               if (!item) return;
               setSelectedBrowseUrl(item.url);
               publishPreview(item);
             }}
-            onRowDoubleClick={(row) => {
+            onRowDoubleClick={(e, row) => {
+              e.stopPropagation();
               const item = sortedBrowseItems.find((entry) => entry.url === row.id);
               if (!item) return;
               navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
@@ -507,8 +509,12 @@ export default function BrowsePage() {
             const libraryRecord = getLibraryManga(it.url);
             return (
               <Box
+                data-manga-item
                 key={`${it.url}-${i}`}
-                onClick={() => publishPreview(it)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  publishPreview(it);
+                }}
               >
                 <MangaCard
                   manga={{

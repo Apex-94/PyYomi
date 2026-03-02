@@ -95,7 +95,7 @@ class ExtensionRegistry:
         package = importlib.import_module(package_name)
         for module_info in pkgutil.iter_modules(package.__path__):
             name = module_info.name
-            if name in ("base", "loader", "__pycache__"):
+            if name in ("base", "loader", "__pycache__", "cloudflare"):
                 continue
             full_name = f"{package_name}.{name}"
             try:

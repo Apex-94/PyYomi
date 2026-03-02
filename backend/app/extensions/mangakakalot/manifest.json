@@ -1,0 +1,9 @@
+{
+  "name": "MangaKakalot",
+  "language": "en",
+  "version": "1.1.0",
+  "base_urls": [
+    "https://www.mangakakalot.gg"
+  ],
+  "description": "Manga source with Cloudflare protection. Uses Botasaurus for Cloudflare bypass."
+}
