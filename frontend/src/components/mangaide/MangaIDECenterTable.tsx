@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Chip, Paper, Typography } from "@mui/material";
+import { Box, Chip, IconButton, Paper, Typography } from "@mui/material";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export type MangaIDECenterSortKey = "title" | "status" | "lastRead" | "source";
 
@@ -17,8 +18,11 @@ interface MangaIDECenterTableProps {
   itemCount: number;
   rows: MangaIDECenterRow[];
   selectedRowId?: string | null;
+  page?: number;
+  totalPages?: number;
   sortKey?: MangaIDECenterSortKey;
   sortDirection?: "asc" | "desc";
+  onPageChange?: (page: number) => void;
   onSortChange?: (key: MangaIDECenterSortKey) => void;
   onRowClick?: (row: MangaIDECenterRow) => void;
   onRowDoubleClick?: (row: MangaIDECenterRow) => void;
@@ -29,12 +33,17 @@ export default function MangaIDECenterTable({
   itemCount,
   rows,
   selectedRowId,
+  page = 1,
+  totalPages = 1,
   sortKey,
   sortDirection,
+  onPageChange,
   onSortChange,
   onRowClick,
   onRowDoubleClick,
 }: MangaIDECenterTableProps) {
+  const hasPagination = totalPages > 1 && !!onPageChange;
+
   return (
     <Paper
       sx={{
@@ -51,6 +60,10 @@ export default function MangaIDECenterTable({
           borderBottom: 1,
           borderColor: "divider",
           bgcolor: "background.default",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
         }}
       >
         <Typography sx={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace" }}>
@@ -59,6 +72,30 @@ export default function MangaIDECenterTable({
             ({itemCount} items)
           </Box>
         </Typography>
+
+        {hasPagination && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, fontFamily: "monospace", fontSize: 12 }}>
+            <IconButton
+              size="small"
+              onClick={() => onPageChange?.(page - 1)}
+              disabled={page <= 1}
+              sx={{ border: 1, borderColor: "divider", borderRadius: 0.75, p: 0.4 }}
+            >
+              <ChevronLeft size={14} />
+            </IconButton>
+            <Box sx={{ minWidth: 76, textAlign: "center", color: "text.secondary" }}>
+              Page {page}/{totalPages}
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => onPageChange?.(page + 1)}
+              disabled={page >= totalPages}
+              sx={{ border: 1, borderColor: "divider", borderRadius: 0.75, p: 0.4 }}
+            >
+              <ChevronRight size={14} />
+            </IconButton>
+          </Box>
+        )}
       </Box>
 
       <Box sx={{ overflowX: "auto" }}>
@@ -132,6 +169,31 @@ export default function MangaIDECenterTable({
           );
         })}
       </Box>
+
+      {hasPagination && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 0.6,
+            borderTop: 1,
+            borderColor: "divider",
+            bgcolor: "background.default",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontFamily: "monospace",
+            fontSize: 12,
+            color: "text.secondary",
+          }}
+        >
+          <Box>
+            Showing {rows.length} item{rows.length === 1 ? "" : "s"}
+          </Box>
+          <Box>
+            Page {page} of {totalPages}
+          </Box>
+        </Box>
+      )}
     </Paper>
   );
 }

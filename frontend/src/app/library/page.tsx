@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api, getProxyUrl } from "../../lib/api";
@@ -9,6 +9,7 @@ import {
   Button,
   Paper,
   CircularProgress,
+  Pagination,
 } from "@mui/material";
 import { MangaCard } from "../../components/MangaCard";
 import { Manga } from "../../types";
@@ -54,6 +55,7 @@ function toManga(item: LibraryItem, meta?: { author?: string; status?: string; d
 }
 
 export default function LibraryPage() {
+  const ITEMS_PER_PAGE = 24;
   const navigate = useNavigate();
   const { uiMode } = useColorMode();
   const { setPreview } = useMangaIDEPreview();
@@ -64,6 +66,7 @@ export default function LibraryPage() {
   const [selectedRowUrl, setSelectedRowUrl] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<"title" | "status" | "lastRead" | "source">("title");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
 
   const removeMutation = useMutation({
     mutationFn: async (url: string) => {
@@ -110,6 +113,17 @@ export default function LibraryPage() {
     });
     return rows;
   }, [data, sortDirection, sortKey]);
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / ITEMS_PER_PAGE));
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    return sortedData.slice(start, start + ITEMS_PER_PAGE);
+  }, [page, sortedData]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const { byKey: metaByUrl } = useAniListMetadataMap((data || []).map((item) => ({ key: item.url, title: item.title })));
 
@@ -138,6 +152,7 @@ export default function LibraryPage() {
     }
     setSortKey(key);
     setSortDirection("asc");
+    setPage(1);
   };
 
   return (
@@ -206,42 +221,57 @@ export default function LibraryPage() {
           )}
 
           {data && data.length > 0 && !isMangaIDE && (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 2,
-                gridTemplateColumns: {
-                  xs: "repeat(2, minmax(150px, 1fr))",
-                  sm: "repeat(auto-fill, minmax(180px, 1fr))",
-                  md: "repeat(auto-fill, minmax(210px, 1fr))",
-                  lg: "repeat(auto-fill, minmax(240px, 1fr))",
-                },
-              }}
-            >
-              {data.map((it) => (
-                <MangaCard
-                  key={it.url}
-                  manga={toManga(it, metaByUrl.get(it.url))}
-                  mangaSource={it.source}
-                  showStatusBadge={false}
-                  actionMode="auto"
-                  libraryButtonState="in_library"
-                  onOpenInLibrary={() => navigate("/library")}
-                  onSetCategories={() => {
-                    setPickerManga({ id: it.id, title: it.title });
-                    setPickerOpen(true);
-                  }}
-                  onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
-                />
-              ))}
-            </Box>
+            <>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: "repeat(2, minmax(150px, 1fr))",
+                    sm: "repeat(auto-fill, minmax(180px, 1fr))",
+                    md: "repeat(auto-fill, minmax(210px, 1fr))",
+                    lg: "repeat(auto-fill, minmax(240px, 1fr))",
+                  },
+                }}
+              >
+                {paginatedData.map((it) => (
+                  <MangaCard
+                    key={it.url}
+                    manga={toManga(it, metaByUrl.get(it.url))}
+                    mangaSource={it.source}
+                    showStatusBadge={false}
+                    actionMode="auto"
+                    libraryButtonState="in_library"
+                    onOpenInLibrary={() => navigate("/library")}
+                    onSetCategories={() => {
+                      setPickerManga({ id: it.id, title: it.title });
+                      setPickerOpen(true);
+                    }}
+                    onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
+                  />
+                ))}
+              </Box>
+
+              {totalPages > 1 && (
+                <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
+                  <Pagination
+                    page={page}
+                    count={totalPages}
+                    onChange={(_event, value) => setPage(value)}
+                    color="primary"
+                  />
+                </Box>
+              )}
+            </>
           )}
 
           {data && data.length > 0 && isMangaIDE && (
             <MangaIDECenterTable
               title="Manga List / All"
               itemCount={data.length}
-              rows={sortedData.map((item) => {
+              page={page}
+              totalPages={totalPages}
+              rows={paginatedData.map((item) => {
                 const meta = metaByUrl.get(item.url);
                 const status = meta?.status || normalizeStatus(item.status);
                 const ratingText = typeof meta?.rating_10 === "number" ? `${meta.rating_10.toFixed(1)}/10` : "--";
@@ -257,19 +287,31 @@ export default function LibraryPage() {
               selectedRowId={selectedRowUrl}
               sortKey={sortKey}
               sortDirection={sortDirection}
+              onPageChange={setPage}
               onSortChange={toggleSort}
               onRowClick={(row) => {
-                const item = sortedData.find((entry) => entry.url === row.id);
+                const item = paginatedData.find((entry) => entry.url === row.id);
                 if (!item) return;
                 setSelectedRowUrl(item.url);
                 publishPreview(item);
               }}
               onRowDoubleClick={(row) => {
-                const item = sortedData.find((entry) => entry.url === row.id);
+                const item = paginatedData.find((entry) => entry.url === row.id);
                 if (!item) return;
                 navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
               }}
             />
+          )}
+
+          {data && data.length > 0 && !isMangaIDE && totalPages > 1 && (
+            <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
+              <Pagination
+                page={page}
+                count={totalPages}
+                onChange={(_event, value) => setPage(value)}
+                color="primary"
+              />
+            </Box>
           )}
         </>
       )}

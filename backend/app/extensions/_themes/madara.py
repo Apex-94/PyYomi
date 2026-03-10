@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, List, Optional
 
+import httpx
 from bs4 import BeautifulSoup, Tag
 
 from app.extensions.base import Chapter, MangaCard, MangaDetails
@@ -116,16 +117,37 @@ class MadaraScraper(BaseThemeScraper):
     def chapter_ajax_url(self, manga_url: str) -> str:
         return manga_url.rstrip("/") + "/ajax/chapters/"
 
+    def _empty_details(self, manga_url: str) -> MangaDetails:
+        return MangaDetails(
+            title="Unknown",
+            description="",
+            author=None,
+            artist=None,
+            status="unknown",
+            genres=[],
+            thumbnail_url=None,
+            source_url=manga_url,
+        )
+
     async def search(self, query: str, page: int = 1, filters=None) -> List[MangaCard]:
         if not query.strip():
             return await self.popular(page)
-        return self._parse_cards(await self._request_soup(self.search_url(query.strip(), page)))
+        try:
+            return self._parse_cards(await self._request_soup(self.search_url(query.strip(), page)))
+        except httpx.HTTPError:
+            return []
 
     async def popular(self, page: int = 1) -> List[MangaCard]:
-        return self._parse_cards(await self._request_soup(self.archive_url(page, order="views")))
+        try:
+            return self._parse_cards(await self._request_soup(self.archive_url(page, order="views")))
+        except httpx.HTTPError:
+            return []
 
     async def latest(self, page: int = 1) -> List[MangaCard]:
-        return self._parse_cards(await self._request_soup(self.archive_url(page, order="latest")))
+        try:
+            return self._parse_cards(await self._request_soup(self.archive_url(page, order="latest")))
+        except httpx.HTTPError:
+            return []
 
     def _parse_cards(self, doc: BeautifulSoup) -> List[MangaCard]:
         cards: List[MangaCard] = []
@@ -167,7 +189,10 @@ class MadaraScraper(BaseThemeScraper):
         )
 
     async def details(self, manga_url: str) -> MangaDetails:
-        return self._parse_details(await self._request_soup(manga_url), manga_url)
+        try:
+            return self._parse_details(await self._request_soup(manga_url), manga_url)
+        except httpx.HTTPError:
+            return self._empty_details(manga_url)
 
     def _parse_details(self, doc: BeautifulSoup, manga_url: str) -> MangaDetails:
         title = first_text(doc, self.details_title_selectors)
@@ -217,7 +242,10 @@ class MadaraScraper(BaseThemeScraper):
         )
 
     async def chapters(self, manga_url: str) -> List[Chapter]:
-        doc = await self._request_soup(manga_url)
+        try:
+            doc = await self._request_soup(manga_url)
+        except httpx.HTTPError:
+            return []
         chapters = self._parse_chapters(doc)
         if chapters:
             return chapters
@@ -275,7 +303,10 @@ class MadaraScraper(BaseThemeScraper):
         )
 
     async def pages(self, chapter_url: str) -> List[str]:
-        doc = await self._request_soup(chapter_url)
+        try:
+            doc = await self._request_soup(chapter_url)
+        except httpx.HTTPError:
+            return []
         pages: List[str] = []
         seen = set()
         for selector in self.page_image_selectors:

@@ -142,14 +142,24 @@ class BaseThemeScraper(BaseScraper):
     ]
 
     def __init__(self) -> None:
+        self._client: httpx.AsyncClient | None = None
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = self._build_client()
+        return self._client
+
+    def _build_client(self) -> httpx.AsyncClient:
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
             "Accept-Language": "en-US,en;q=0.9",
         }
-        self.client = httpx.AsyncClient(
+        return httpx.AsyncClient(
             headers=headers,
             timeout=httpx.Timeout(self.request_timeout),
             follow_redirects=True,
+            trust_env=False,
         )
 
     async def get_filters(self) -> List[Filter]:
