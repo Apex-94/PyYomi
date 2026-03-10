@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import AsyncMock
 
 from bs4 import BeautifulSoup
+import httpx
 
 from app.extensions._themes.madtheme import MadThemeScraper
 from app.extensions.arcanescans import Arcanescans
@@ -114,3 +115,34 @@ class ThemeScraperRepresentativeTests(unittest.IsolatedAsyncioTestCase):
                 "https://madtheme.example/page-2.jpg",
             ],
         )
+
+    async def test_madara_source_handles_upstream_browse_error(self) -> None:
+        scraper = ManhuaPlus()
+        request = httpx.Request("GET", "https://manhuaplus.com/manga/?m_orderby=latest")
+        response = httpx.Response(403, request=request)
+        scraper._request_soup = AsyncMock(side_effect=httpx.HTTPStatusError("Forbidden", request=request, response=response))
+
+        cards = await scraper.latest()
+
+        self.assertEqual(cards, [])
+
+    async def test_madara_source_handles_upstream_details_error(self) -> None:
+        scraper = ManhuaPlus()
+        request = httpx.Request("GET", "https://manhuaplus.com/series/sample")
+        response = httpx.Response(403, request=request)
+        scraper._request_soup = AsyncMock(side_effect=httpx.HTTPStatusError("Forbidden", request=request, response=response))
+
+        details = await scraper.details("https://manhuaplus.com/series/sample")
+
+        self.assertEqual(details.title, "Unknown")
+        self.assertEqual(details.status, "unknown")
+
+    async def test_madara_source_handles_upstream_pages_error(self) -> None:
+        scraper = ManhuaPlus()
+        request = httpx.Request("GET", "https://manhuaplus.com/series/chapter-1")
+        response = httpx.Response(403, request=request)
+        scraper._request_soup = AsyncMock(side_effect=httpx.HTTPStatusError("Forbidden", request=request, response=response))
+
+        pages = await scraper.pages("https://manhuaplus.com/series/chapter-1")
+
+        self.assertEqual(pages, [])

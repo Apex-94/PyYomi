@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -50,6 +50,7 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
   const [explorerFilter, setExplorerFilter] = useState('');
   const [preview, setPreview] = useState<MangaIDEPreviewData | null>(null);
   const isCompact = useMediaQuery('(max-width:1023px)');
+  const hasPreview = !!preview;
 
   const sectionTitle = useMemo(() => {
     const item = menuItems.find((entry) => entry.path === location.pathname);
@@ -89,6 +90,11 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
     const params = new URLSearchParams(location.search);
     return params.get('name');
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    setPreview(null);
+  }, [location.pathname, location.search]);
+
   const normalizedFilter = explorerFilter.trim().toLowerCase();
   const showBrowse = normalizedFilter.length === 0 || 'browse'.includes(normalizedFilter);
   const showFavorites = normalizedFilter.length === 0 || 'favorites'.includes(normalizedFilter);
@@ -168,7 +174,7 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
         sx={{
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: '280px minmax(0,1fr) 340px',
+          gridTemplateColumns: hasPreview ? '280px minmax(0,1fr) 340px' : '280px minmax(0,1fr)',
           overflow: 'hidden',
         }}
       >
@@ -238,24 +244,25 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
         </Box>
 
         <Box sx={{ minWidth: 0, minHeight: 0, overflow: 'auto', p: 2 }}>{children}</Box>
-
-        <Box
-          sx={{
-            borderLeft: 1,
-            borderColor: 'divider',
-            bgcolor: mode === 'light' ? '#f5f5f5' : '#20242b',
-            display: 'flex',
-            flexDirection: 'column',
-            minWidth: 0,
-          }}
-        >
-          <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography sx={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-              Preview - {sectionTitle}
-            </Typography>
+        {hasPreview && (
+          <Box
+            sx={{
+              borderLeft: 1,
+              borderColor: 'divider',
+              bgcolor: mode === 'light' ? '#f5f5f5' : '#20242b',
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 0,
+            }}
+          >
+            <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                Preview - {sectionTitle}
+              </Typography>
+            </Box>
+            <PreviewPanel />
           </Box>
-          <PreviewPanel />
-        </Box>
+        )}
       </Box>
 
       <Box

@@ -16,6 +16,7 @@ import {
   ToggleButton,
   CircularProgress,
   MenuItem,
+  Pagination,
 } from "@mui/material";
 import { SECTION_GAP } from "../../constants/layout";
 import { useLibraryState } from "../../hooks/useLibraryState";
@@ -60,6 +61,10 @@ export default function BrowsePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<"latest" | "popular" | "random">("latest");
   const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [page, setPage] = useState<number>(() => {
+    const raw = Number(searchParams.get("page") ?? "1");
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  });
   const [activeFilters, setActiveFilters] = useState<any[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -76,6 +81,24 @@ export default function BrowsePage() {
   const [pendingUrls, setPendingUrls] = useState<Record<string, boolean>>({});
 
   const { isInLibrary, getLibraryManga, applyAddResult, removeByUrl } = useLibraryState();
+  const submittedQuery = searchParams.get("q") ?? "";
+
+  const syncBrowseParams = (nextPage: number, nextQuery = submittedQuery) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (nextQuery.trim()) {
+        next.set("q", nextQuery.trim());
+      } else {
+        next.delete("q");
+      }
+      if (nextPage > 1) {
+        next.set("page", String(nextPage));
+      } else {
+        next.delete("page");
+      }
+      return next;
+    });
+  };
 
   const { data: sourcesData } = useQuery({
     queryKey: ["sources"],
@@ -127,13 +150,25 @@ export default function BrowsePage() {
     if (urlQ !== q) {
       setQ(urlQ);
     }
+    const rawPage = Number(searchParams.get("page") ?? "1");
+    const nextPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+    if (nextPage !== page) {
+      setPage(nextPage);
+    }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (page !== 1 || searchParams.get("page")) {
+      setPage(1);
+      syncBrowseParams(1);
+    }
+  }, [tab, activeSource?.id, submittedQuery, activeFilters]);
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["browse", tab, q, activeFilters, activeSource?.id],
+    queryKey: ["browse", tab, submittedQuery, activeFilters, activeSource?.id, page],
     queryFn: async () => {
-      if (q.trim() || activeFilters.length > 0) {
-        const params: any = { q: q.trim() || "" };
+      if (submittedQuery.trim() || activeFilters.length > 0) {
+        const params: any = { q: submittedQuery.trim() || "", page };
         if (activeFilters.length > 0) {
           params.filters = JSON.stringify(activeFilters);
         }
@@ -144,7 +179,11 @@ export default function BrowsePage() {
         return resp.data;
       }
       const endpoint = tab === "latest" ? "/manga/latest" : tab === "popular" ? "/manga/popular" : "/manga/random";
-      const resp = await api.get(endpoint);
+      const params: Record<string, string | number> = { page };
+      if (activeSource) {
+        params.source = activeSource.id;
+      }
+      const resp = await api.get(endpoint, { params });
       return resp.data;
     },
   });
@@ -198,6 +237,8 @@ export default function BrowsePage() {
   });
 
   const browseItems: MangaCardItem[] = useMemo(() => data?.results || [], [data?.results]);
+  const hasBrowseResults = browseItems.length > 0;
+  const canGoNextPage = tab !== "random" && hasBrowseResults;
   const isMangaIDE = uiMode === "mangaide";
   const { byKey: browseMetaByUrl } = useAniListMetadataMap(
     browseItems.map((item) => ({ key: item.url, title: item.title }))
@@ -301,22 +342,15 @@ export default function BrowsePage() {
 
         <TextField
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => setQ(e.target.value)}
           placeholder="Search manga"
           size="small"
           fullWidth
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const normalized = q.trim();
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                if (normalized) {
-                  next.set("q", normalized);
-                } else {
-                  next.delete("q");
-                }
-                return next;
-              });
+              setPage(1);
+              syncBrowseParams(1, normalized);
               void refetch();
             }
           }}
@@ -456,6 +490,8 @@ export default function BrowsePage() {
           <MangaIDECenterTable
             title={`Browse - ${activeSource?.id || "Source"}`}
             itemCount={sortedBrowseItems.length}
+            page={page}
+            totalPages={canGoNextPage ? page + 1 : page}
             rows={sortedBrowseItems.map((item) => {
               const meta = browseMetaByUrl.get(item.url);
               const ratingText = typeof meta?.rating_10 === "number" ? `${meta.rating_10.toFixed(1)}/10` : "--";
@@ -472,6 +508,10 @@ export default function BrowsePage() {
             selectedRowId={selectedBrowseUrl}
             sortKey={sortKey}
             sortDirection={sortDirection}
+            onPageChange={(nextPage) => {
+              setPage(nextPage);
+              syncBrowseParams(nextPage);
+            }}
             onSortChange={toggleSort}
             onRowClick={(row) => {
               const item = sortedBrowseItems.find((entry) => entry.url === row.id);
@@ -487,58 +527,76 @@ export default function BrowsePage() {
           />
         </Box>
       ) : (
-        <Box
-          sx={{
-            mt: 3,
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: {
-              xs: "repeat(2, minmax(150px, 1fr))",
-              sm: "repeat(auto-fill, minmax(180px, 1fr))",
-              md: "repeat(auto-fill, minmax(210px, 1fr))",
-              lg: "repeat(auto-fill, minmax(240px, 1fr))",
-            },
-          }}
-        >
-          {browseItems.map((it, i) => {
-            const meta = browseMetaByUrl.get(it.url);
-            const inLibrary = isInLibrary(it.url);
-            const pending = !!pendingUrls[it.url];
-            const libraryRecord = getLibraryManga(it.url);
-            return (
-              <Box
-                key={`${it.url}-${i}`}
-                onClick={() => publishPreview(it)}
-              >
-                <MangaCard
-                  manga={{
-                    id: it.url,
-                    title: it.title,
-                    altTitle: "",
-                    author: meta?.author || null,
-                    status: (meta?.status as "Ongoing" | "Completed" | "Hiatus") || normalizeStatus(it.status),
-                    genres: it.genres || [],
-                    description: meta?.description || "",
-                    coverUrl: it.thumbnail_url ? getProxyUrl(it.thumbnail_url, it.source) : "",
-                    rating: meta?.rating_10 || 0,
-                    chapters: [],
-                  }}
-                  mangaSource={it.source}
-                  libraryButtonState={pending ? 'adding' : (inLibrary ? 'in_library' : 'not_in_library')}
-                  onAddToLibrary={() => addMutation.mutate(it)}
-                  onOpenInLibrary={() => navigate('/library')}
-                  onSetCategories={() => {
-                    setPickerManga({ id: libraryRecord?.id, title: it.title });
-                    setPickerOpen(true);
-                  }}
-                  onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
-                  actionMode="auto"
-                  showStatusBadge
-                />
-              </Box>
-            );
-          })}
-        </Box>
+        <>
+          <Box
+            sx={{
+              mt: 3,
+              display: "grid",
+              gap: 2,
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(150px, 1fr))",
+                sm: "repeat(auto-fill, minmax(180px, 1fr))",
+                md: "repeat(auto-fill, minmax(210px, 1fr))",
+                lg: "repeat(auto-fill, minmax(240px, 1fr))",
+              },
+            }}
+          >
+            {browseItems.map((it, i) => {
+              const meta = browseMetaByUrl.get(it.url);
+              const inLibrary = isInLibrary(it.url);
+              const pending = !!pendingUrls[it.url];
+              const libraryRecord = getLibraryManga(it.url);
+              return (
+                <Box
+                  key={`${it.url}-${i}`}
+                  onClick={() => publishPreview(it)}
+                >
+                  <MangaCard
+                    manga={{
+                      id: it.url,
+                      title: it.title,
+                      altTitle: "",
+                      author: meta?.author || null,
+                      status: (meta?.status as "Ongoing" | "Completed" | "Hiatus") || normalizeStatus(it.status),
+                      genres: it.genres || [],
+                      description: meta?.description || "",
+                      coverUrl: it.thumbnail_url ? getProxyUrl(it.thumbnail_url, it.source) : "",
+                      rating: meta?.rating_10 || 0,
+                      chapters: [],
+                    }}
+                    mangaSource={it.source}
+                    libraryButtonState={pending ? 'adding' : (inLibrary ? 'in_library' : 'not_in_library')}
+                    onAddToLibrary={() => addMutation.mutate(it)}
+                    onOpenInLibrary={() => navigate('/library')}
+                    onSetCategories={() => {
+                      setPickerManga({ id: libraryRecord?.id, title: it.title });
+                      setPickerOpen(true);
+                    }}
+                    onRemoveFromLibrary={() => removeMutation.mutate(it.url)}
+                    actionMode="auto"
+                    showStatusBadge
+                  />
+                </Box>
+              );
+            })}
+          </Box>
+
+          {!isMangaIDE && (tab !== "random") && (hasBrowseResults || page > 1) && (
+            <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
+              <Pagination
+                page={page}
+                count={canGoNextPage ? page + 1 : page}
+                onChange={(_event, value) => {
+                  setPage(value);
+                  syncBrowseParams(value);
+                }}
+                color="primary"
+                siblingCount={0}
+                boundaryCount={1}
+              />
+            </Box>
+          )}
+        </>
       )}
 
       <SetCategoriesPicker
