@@ -32,6 +32,7 @@ backend/.encryption_key
 backend/error_logs/
 data/
 .tmp/
+.test-artifacts/
 
 # Plans and local docs drafts
 plans/
