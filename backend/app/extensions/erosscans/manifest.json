@@ -1,0 +1,13 @@
+{
+  "name": "Eros Scans",
+  "language": "en",
+  "version": "1.0.5",
+  "base_urls": [
+    "https://erosxsun.xyz"
+  ],
+  "generated": true,
+  "upstream_slug": "erosscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/erosscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

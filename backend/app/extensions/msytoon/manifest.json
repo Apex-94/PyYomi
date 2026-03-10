@@ -1,0 +1,13 @@
+{
+  "name": "MSYToon",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://msytoon.com"
+  ],
+  "generated": true,
+  "upstream_slug": "msytoon",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/msytoon",
+  "theme": "keyoapp",
+  "nsfw": false
+}

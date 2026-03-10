@@ -1,0 +1,13 @@
+{
+  "name": "ToonChill",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://toonchill.com"
+  ],
+  "generated": true,
+  "upstream_slug": "toonchill",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/toonchill",
+  "theme": "madara",
+  "nsfw": false
+}

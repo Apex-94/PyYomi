@@ -1,0 +1,13 @@
+{
+  "name": "YakshaComics",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://yakshacomics.com"
+  ],
+  "generated": true,
+  "upstream_slug": "yakshacomics",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/yakshacomics",
+  "theme": "madara",
+  "nsfw": false
+}

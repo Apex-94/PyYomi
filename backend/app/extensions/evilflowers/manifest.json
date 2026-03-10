@@ -1,0 +1,13 @@
+{
+  "name": "Evil Flowers",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://evilflowers.com"
+  ],
+  "generated": true,
+  "upstream_slug": "evilflowers",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/evilflowers",
+  "theme": "madara",
+  "nsfw": false
+}

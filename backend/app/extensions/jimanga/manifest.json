@@ -1,0 +1,13 @@
+{
+  "name": "S2Manga.io",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://s2manga.io"
+  ],
+  "generated": true,
+  "upstream_slug": "jimanga",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/jimanga",
+  "theme": "madara",
+  "nsfw": false
+}

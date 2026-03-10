@@ -1,0 +1,13 @@
+{
+  "name": "Firescans",
+  "language": "en",
+  "version": "1.0.3",
+  "base_urls": [
+    "https://firescans.xyz"
+  ],
+  "generated": true,
+  "upstream_slug": "firescans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/firescans",
+  "theme": "madara",
+  "nsfw": false
+}

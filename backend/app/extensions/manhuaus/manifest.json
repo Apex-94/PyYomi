@@ -1,0 +1,13 @@
+{
+  "name": "ManhuaUS",
+  "language": "en",
+  "version": "1.0.5",
+  "base_urls": [
+    "https://manhuaus.com"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuaus",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuaus",
+  "theme": "madara",
+  "nsfw": false
+}

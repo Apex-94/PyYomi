@@ -1,0 +1,13 @@
+{
+  "name": "Webdex Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://webdexscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "webdexscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/webdexscans",
+  "theme": "madara",
+  "nsfw": false
+}

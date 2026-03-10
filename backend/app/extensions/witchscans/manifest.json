@@ -1,0 +1,13 @@
+{
+  "name": "WitchScans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://witchscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "witchscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/witchscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

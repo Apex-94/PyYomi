@@ -1,0 +1,13 @@
+{
+  "name": "TCB Scans (Unoriginal)",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://tcbscanonepiecechapters.com"
+  ],
+  "generated": true,
+  "upstream_slug": "tcbscansunoriginal",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/tcbscansunoriginal",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

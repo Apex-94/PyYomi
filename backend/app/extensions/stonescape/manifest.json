@@ -1,0 +1,13 @@
+{
+  "name": "StoneScape",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://stonescape.xyz"
+  ],
+  "generated": true,
+  "upstream_slug": "stonescape",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/stonescape",
+  "theme": "madara",
+  "nsfw": false
+}

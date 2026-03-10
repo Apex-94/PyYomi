@@ -1,0 +1,13 @@
+{
+  "name": "Drake Scans",
+  "language": "en",
+  "version": "1.0.15",
+  "base_urls": [
+    "https://drakecomic.org"
+  ],
+  "generated": true,
+  "upstream_slug": "drakescans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/drakescans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

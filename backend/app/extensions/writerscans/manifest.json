@@ -1,0 +1,13 @@
+{
+  "name": "Writer Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://writerscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "writerscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/writerscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

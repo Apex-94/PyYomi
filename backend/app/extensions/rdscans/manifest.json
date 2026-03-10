@@ -1,0 +1,13 @@
+{
+  "name": "RD Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://rdscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "rdscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/rdscans",
+  "theme": "madara",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Nitro Scans",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://nitroscans.net"
+  ],
+  "generated": true,
+  "upstream_slug": "nitroscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/nitroscans",
+  "theme": "madara",
+  "nsfw": false
+}

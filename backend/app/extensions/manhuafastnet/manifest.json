@@ -1,0 +1,13 @@
+{
+  "name": "ManhuaFast.net (unoriginal)",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://manhuafast.net"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuafastnet",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuafastnet",
+  "theme": "madara",
+  "nsfw": false
+}

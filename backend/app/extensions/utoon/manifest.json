@@ -1,0 +1,13 @@
+{
+  "name": "Utoon",
+  "language": "en",
+  "version": "1.0.3",
+  "base_urls": [
+    "https://utoon.net"
+  ],
+  "generated": true,
+  "upstream_slug": "utoon",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/utoon",
+  "theme": "madara",
+  "nsfw": false
+}

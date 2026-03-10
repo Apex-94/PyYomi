@@ -1,0 +1,13 @@
+{
+  "name": "Reset Scans",
+  "language": "en",
+  "version": "1.0.10",
+  "base_urls": [
+    "https://reset-scans.org"
+  ],
+  "generated": true,
+  "upstream_slug": "resetscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/resetscans",
+  "theme": "madara",
+  "nsfw": false
+}

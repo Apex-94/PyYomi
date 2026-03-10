@@ -1,0 +1,13 @@
+{
+  "name": "MangaTone",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://mangatone.com"
+  ],
+  "generated": true,
+  "upstream_slug": "mangatone",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mangatone",
+  "theme": "madara",
+  "nsfw": false
+}

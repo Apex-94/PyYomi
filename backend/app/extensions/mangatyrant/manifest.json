@@ -1,0 +1,13 @@
+{
+  "name": "MangaTyrant",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://mangatyrant.com"
+  ],
+  "generated": true,
+  "upstream_slug": "mangatyrant",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mangatyrant",
+  "theme": "madara",
+  "nsfw": false
+}

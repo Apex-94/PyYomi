@@ -1,0 +1,13 @@
+{
+  "name": "Rizz Comic",
+  "language": "en",
+  "version": "1.0.12",
+  "base_urls": [
+    "https://rizzfables.com"
+  ],
+  "generated": true,
+  "upstream_slug": "rizzcomic",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/rizzcomic",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

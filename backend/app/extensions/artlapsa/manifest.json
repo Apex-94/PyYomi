@@ -1,0 +1,13 @@
+{
+  "name": "Art Lapsa",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://artlapsa.com"
+  ],
+  "generated": true,
+  "upstream_slug": "artlapsa",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/artlapsa",
+  "theme": "keyoapp",
+  "nsfw": false
+}

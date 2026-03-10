@@ -1,0 +1,13 @@
+{
+  "name": "Valir Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://valirscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "valirscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/valirscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

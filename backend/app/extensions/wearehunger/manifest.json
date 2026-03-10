@@ -1,0 +1,13 @@
+{
+  "name": "Wearehunger",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://www.wearehunger.site"
+  ],
+  "generated": true,
+  "upstream_slug": "wearehunger",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/wearehunger",
+  "theme": "madara",
+  "nsfw": false
+}

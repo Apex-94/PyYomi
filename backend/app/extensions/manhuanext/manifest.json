@@ -1,0 +1,13 @@
+{
+  "name": "Manhuanext",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://manhuanext.com"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuanext",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuanext",
+  "theme": "madara",
+  "nsfw": false
+}

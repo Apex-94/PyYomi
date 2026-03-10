@@ -1,0 +1,13 @@
+{
+  "name": "Rizz Comic (unoriginal)",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://rizzcomic.com"
+  ],
+  "generated": true,
+  "upstream_slug": "rizzcomicunoriginal",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/rizzcomicunoriginal",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

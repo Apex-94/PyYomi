@@ -1,0 +1,13 @@
+{
+  "name": "MangaDia",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://mangadia.com"
+  ],
+  "generated": true,
+  "upstream_slug": "mangadia",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mangadia",
+  "theme": "madara",
+  "nsfw": false
+}

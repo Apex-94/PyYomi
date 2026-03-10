@@ -1,0 +1,13 @@
+{
+  "name": "WuxiaWorld",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://wuxiaworld.site"
+  ],
+  "generated": true,
+  "upstream_slug": "wuxiaworld",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/wuxiaworld",
+  "theme": "madara",
+  "nsfw": false
+}

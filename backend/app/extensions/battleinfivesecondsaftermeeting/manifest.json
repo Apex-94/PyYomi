@@ -1,0 +1,13 @@
+{
+  "name": "Battle In 5 Seconds After Meeting",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://www.deatte5.com"
+  ],
+  "generated": true,
+  "upstream_slug": "battleinfivesecondsaftermeeting",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/battleinfivesecondsaftermeeting",
+  "theme": "madara",
+  "nsfw": false
+}

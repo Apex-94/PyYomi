@@ -1,0 +1,13 @@
+{
+  "name": "Rackus",
+  "language": "en",
+  "version": "1.0.7",
+  "base_urls": [
+    "https://rackusreads.com"
+  ],
+  "generated": true,
+  "upstream_slug": "pmscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/pmscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

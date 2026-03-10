@@ -1,0 +1,13 @@
+{
+  "name": "TritiniaScans",
+  "language": "en",
+  "version": "1.0.4",
+  "base_urls": [
+    "https://tritinia.org"
+  ],
+  "generated": true,
+  "upstream_slug": "tritiniascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/tritiniascans",
+  "theme": "madara",
+  "nsfw": false
+}

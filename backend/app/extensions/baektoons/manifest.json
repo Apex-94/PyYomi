@@ -1,0 +1,13 @@
+{
+  "name": "Baek Toons",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://baektoons.com"
+  ],
+  "generated": true,
+  "upstream_slug": "baektoons",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/baektoons",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

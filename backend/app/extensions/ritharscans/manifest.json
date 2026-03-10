@@ -1,0 +1,13 @@
+{
+  "name": "RitharScans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://ritharscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "ritharscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/ritharscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

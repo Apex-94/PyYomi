@@ -1,0 +1,13 @@
+{
+  "name": "Siren Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://sirenscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "sirenscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/sirenscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

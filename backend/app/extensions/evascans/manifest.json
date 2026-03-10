@@ -1,0 +1,13 @@
+{
+  "name": "Eva Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://evascans.org"
+  ],
+  "generated": true,
+  "upstream_slug": "evascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/evascans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

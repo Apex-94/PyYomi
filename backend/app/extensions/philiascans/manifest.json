@@ -1,0 +1,13 @@
+{
+  "name": "Philia Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://philiascans.org"
+  ],
+  "generated": true,
+  "upstream_slug": "philiascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/philiascans",
+  "theme": "madara",
+  "nsfw": false
+}

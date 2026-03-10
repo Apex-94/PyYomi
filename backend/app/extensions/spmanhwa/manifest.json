@@ -1,0 +1,13 @@
+{
+  "name": "Spmanhwa",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://spmanhwa.online"
+  ],
+  "generated": true,
+  "upstream_slug": "spmanhwa",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/spmanhwa",
+  "theme": "madara",
+  "nsfw": false
+}
