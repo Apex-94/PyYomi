@@ -1,0 +1,13 @@
+{
+  "name": "FlameScans.lol",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://flamescans.lol"
+  ],
+  "generated": true,
+  "upstream_slug": "plutoscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/plutoscans",
+  "theme": "madara",
+  "nsfw": false
+}

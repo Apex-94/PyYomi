@@ -1,0 +1,13 @@
+{
+  "name": "Kayn Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://kaynscan.com"
+  ],
+  "generated": true,
+  "upstream_slug": "kaynscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/kaynscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

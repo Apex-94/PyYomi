@@ -1,0 +1,13 @@
+{
+  "name": "Arcanescans",
+  "language": "en",
+  "version": "1.0.15",
+  "base_urls": [
+    "https://arcanescans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "arcanescans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/arcanescans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

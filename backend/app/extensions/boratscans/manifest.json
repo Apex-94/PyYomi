@@ -1,0 +1,13 @@
+{
+  "name": "Borat Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://boratscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "boratscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/boratscans",
+  "theme": "madara",
+  "nsfw": false
+}

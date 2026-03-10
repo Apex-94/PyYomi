@@ -1,0 +1,13 @@
+{
+  "name": "Mangasushi",
+  "language": "en",
+  "version": "1.0.3",
+  "base_urls": [
+    "https://mangasushi.org"
+  ],
+  "generated": true,
+  "upstream_slug": "mangasushi",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mangasushi",
+  "theme": "madara",
+  "nsfw": false
+}

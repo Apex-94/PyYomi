@@ -1,0 +1,13 @@
+{
+  "name": "Razure",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://razure.org"
+  ],
+  "generated": true,
+  "upstream_slug": "razure",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/razure",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

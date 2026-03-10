@@ -1,0 +1,13 @@
+{
+  "name": "Rage Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://ragescans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "ragescans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/ragescans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

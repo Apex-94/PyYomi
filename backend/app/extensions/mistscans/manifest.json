@@ -1,0 +1,13 @@
+{
+  "name": "Mist Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://mistscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "mistscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mistscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

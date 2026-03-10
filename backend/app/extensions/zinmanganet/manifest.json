@@ -1,0 +1,13 @@
+{
+  "name": "Zinmanga.net",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://zinmanga.net"
+  ],
+  "generated": true,
+  "upstream_slug": "zinmanganet",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/zinmanganet",
+  "theme": "madara",
+  "nsfw": false
+}

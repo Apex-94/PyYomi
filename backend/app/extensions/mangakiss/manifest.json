@@ -1,0 +1,13 @@
+{
+  "name": "Manga Kiss",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://mangakiss.org"
+  ],
+  "generated": true,
+  "upstream_slug": "mangakiss",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/mangakiss",
+  "theme": "madara",
+  "nsfw": false
+}

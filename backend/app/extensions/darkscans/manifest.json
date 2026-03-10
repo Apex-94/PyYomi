@@ -1,0 +1,13 @@
+{
+  "name": "Dark Scans",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://darkscans.net"
+  ],
+  "generated": true,
+  "upstream_slug": "darkscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/darkscans",
+  "theme": "madara",
+  "nsfw": false
+}

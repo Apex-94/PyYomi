@@ -1,0 +1,13 @@
+{
+  "name": "TappyToon.Net",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://tappytoon.net"
+  ],
+  "generated": true,
+  "upstream_slug": "tappytoonnet",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/tappytoonnet",
+  "theme": "madara",
+  "nsfw": false
+}

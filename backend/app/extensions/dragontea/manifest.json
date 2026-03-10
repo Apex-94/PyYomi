@@ -1,0 +1,13 @@
+{
+  "name": "DragonTea",
+  "language": "en",
+  "version": "1.0.4",
+  "base_urls": [
+    "https://dragontea.ink"
+  ],
+  "generated": true,
+  "upstream_slug": "dragontea",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/dragontea",
+  "theme": "madara",
+  "nsfw": false
+}

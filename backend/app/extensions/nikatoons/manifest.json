@@ -1,0 +1,13 @@
+{
+  "name": "Nika Toons",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://nikatoons.com"
+  ],
+  "generated": true,
+  "upstream_slug": "nikatoons",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/nikatoons",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

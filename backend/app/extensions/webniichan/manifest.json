@@ -1,0 +1,13 @@
+{
+  "name": "Web Niichan",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://webniichan.online"
+  ],
+  "generated": true,
+  "upstream_slug": "webniichan",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/webniichan",
+  "theme": "madara",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Arya Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://brainrotcomics.com"
+  ],
+  "generated": true,
+  "upstream_slug": "aryascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/aryascans",
+  "theme": "madara",
+  "nsfw": false
+}

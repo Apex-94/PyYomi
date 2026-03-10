@@ -1,0 +1,13 @@
+{
+  "name": "Setsu Scans",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://setsuscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "setsuscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/setsuscans",
+  "theme": "madara",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Aein Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://aeinscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "aeinscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/aeinscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

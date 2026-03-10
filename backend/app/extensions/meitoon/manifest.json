@@ -1,0 +1,13 @@
+{
+  "name": "MeiToon",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://meitoon.org"
+  ],
+  "generated": true,
+  "upstream_slug": "meitoon",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/meitoon",
+  "theme": "keyoapp",
+  "nsfw": false
+}

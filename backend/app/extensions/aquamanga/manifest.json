@@ -1,0 +1,13 @@
+{
+  "name": "Aqua Manga",
+  "language": "en",
+  "version": "1.0.9",
+  "base_urls": [
+    "https://aquareader.net"
+  ],
+  "generated": true,
+  "upstream_slug": "aquamanga",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/aquamanga",
+  "theme": "madara",
+  "nsfw": false
+}

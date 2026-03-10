@@ -1,0 +1,13 @@
+{
+  "name": "Sleepy Translations",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://sleepytranslations.com"
+  ],
+  "generated": true,
+  "upstream_slug": "sleepytranslations",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/sleepytranslations",
+  "theme": "madara",
+  "nsfw": false
+}

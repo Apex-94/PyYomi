@@ -1,0 +1,13 @@
+{
+  "name": "Ryumanga",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://ryumanga.org"
+  ],
+  "generated": true,
+  "upstream_slug": "ryumanga",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/ryumanga",
+  "theme": "keyoapp",
+  "nsfw": false
+}

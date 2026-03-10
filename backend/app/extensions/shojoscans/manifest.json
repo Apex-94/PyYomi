@@ -1,0 +1,13 @@
+{
+  "name": "Violet Scans",
+  "language": "en",
+  "version": "1.0.3",
+  "base_urls": [
+    "https://violetscans.org"
+  ],
+  "generated": true,
+  "upstream_slug": "shojoscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/shojoscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Necro Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://necroscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "necroscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/necroscans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

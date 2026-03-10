@@ -1,0 +1,13 @@
+{
+  "name": "Platinum Crown",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://platinumscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "platinumcrown",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/platinumcrown",
+  "theme": "madara",
+  "nsfw": false
+}

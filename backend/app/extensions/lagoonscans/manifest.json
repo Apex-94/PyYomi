@@ -1,0 +1,13 @@
+{
+  "name": "Lagoon Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://lagoonscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "lagoonscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/lagoonscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "WoopRead",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://woopread.com"
+  ],
+  "generated": true,
+  "upstream_slug": "woopread",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/woopread",
+  "theme": "madara",
+  "nsfw": false
+}

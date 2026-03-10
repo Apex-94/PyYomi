@@ -1,0 +1,13 @@
+{
+  "name": "Manhua Plus",
+  "language": "en",
+  "version": "1.0.7",
+  "base_urls": [
+    "https://manhuaplus.com"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuaplus",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuaplus",
+  "theme": "madara",
+  "nsfw": false
+}

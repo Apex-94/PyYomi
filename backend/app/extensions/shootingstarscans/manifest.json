@@ -1,0 +1,13 @@
+{
+  "name": "Shooting Star Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://shootingstarscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "shootingstarscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/shootingstarscans",
+  "theme": "madara",
+  "nsfw": false
+}

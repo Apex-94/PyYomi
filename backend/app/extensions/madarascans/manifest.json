@@ -1,0 +1,13 @@
+{
+  "name": "Madara Scans",
+  "language": "en",
+  "version": "1.0.1",
+  "base_urls": [
+    "https://madarascans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "madarascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/madarascans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

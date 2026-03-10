@@ -1,0 +1,13 @@
+{
+  "name": "Manhua ES",
+  "language": "en",
+  "version": "1.0.6",
+  "base_urls": [
+    "https://manhuaes.com"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuaes",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuaes",
+  "theme": "madara",
+  "nsfw": false
+}

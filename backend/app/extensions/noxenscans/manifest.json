@@ -1,0 +1,13 @@
+{
+  "name": "Noxen Scans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://noxenscan.com"
+  ],
+  "generated": true,
+  "upstream_slug": "noxenscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/noxenscans",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "RokariComics",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://rokaricomics.com"
+  ],
+  "generated": true,
+  "upstream_slug": "rokaricomics",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/rokaricomics",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

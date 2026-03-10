@@ -1,0 +1,13 @@
+{
+  "name": "Elf Toon",
+  "language": "en",
+  "version": "1.0.2",
+  "base_urls": [
+    "https://elftoon.com"
+  ],
+  "generated": true,
+  "upstream_slug": "elftoon",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/elftoon",
+  "theme": "mangathemesia",
+  "nsfw": false
+}

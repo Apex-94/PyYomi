@@ -1,0 +1,13 @@
+{
+  "name": "Genz Toons",
+  "language": "en",
+  "version": "1.0.31",
+  "base_urls": [
+    "https://genzupdates.com"
+  ],
+  "generated": true,
+  "upstream_slug": "suryascans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/suryascans",
+  "theme": "keyoapp",
+  "nsfw": false
+}

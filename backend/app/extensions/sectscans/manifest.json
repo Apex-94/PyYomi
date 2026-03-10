@@ -1,0 +1,13 @@
+{
+  "name": "SectScans",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://sectscans.com"
+  ],
+  "generated": true,
+  "upstream_slug": "sectscans",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/sectscans",
+  "theme": "madara",
+  "nsfw": false
+}

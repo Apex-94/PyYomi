@@ -1,0 +1,13 @@
+{
+  "name": "ManhuaHot",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://manhuahot.com"
+  ],
+  "generated": true,
+  "upstream_slug": "manhuahot",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/manhuahot",
+  "theme": "madara",
+  "nsfw": false
+}

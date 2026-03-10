@@ -1,0 +1,13 @@
+{
+  "name": "Nyanu Kafe",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://nyanukafe.com"
+  ],
+  "generated": true,
+  "upstream_slug": "nyanukafe",
+  "upstream_path": "H:/repo/PyYomi/.tmp/extensions-source/src/en/nyanukafe",
+  "theme": "keyoapp",
+  "nsfw": false
+}
