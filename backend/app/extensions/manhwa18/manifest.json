@@ -1,0 +1,9 @@
+{
+  "name": "Manhwa18",
+  "language": "en",
+  "version": "1.0.12",
+  "base_urls": [
+    "https://manhwa18.com"
+  ],
+  "description": "Manhwa18 scraper using the site's public JSON API."
+}
