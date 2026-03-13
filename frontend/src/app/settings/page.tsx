@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const [cacheEnabled, setCacheEnabled] = useState('true');
   const [cacheMaxBytes, setCacheMaxBytes] = useState('536870912');
   const [cacheTtlHours, setCacheTtlHours] = useState('720');
-  const [uiMode, setUIMode] = useState<'classic' | 'mangaide'>('classic');
+  const [uiMode, setUIMode] = useState<'classic' | 'mangaide'>('mangaide');
   const [colorMode, setColorMode] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -38,8 +38,8 @@ export default function SettingsPage() {
     setCacheEnabled(getStr('images.cache.enabled', true));
     setCacheMaxBytes(getStr('images.cache.max_bytes', 536870912));
     setCacheTtlHours(getStr('images.cache.ttl_hours', 720));
-    const rawUiMode = getStr('ui.mode', 'classic');
-    setUIMode(rawUiMode === 'mangaide' ? 'mangaide' : 'classic');
+    const rawUiMode = getStr('ui.mode', 'mangaide');
+    setUIMode(rawUiMode === 'classic' ? 'classic' : 'mangaide');
     const rawColorMode = getStr('ui.color_mode', mode);
     setColorMode(rawColorMode === 'dark' ? 'dark' : 'light');
   }, [data, mode]);
