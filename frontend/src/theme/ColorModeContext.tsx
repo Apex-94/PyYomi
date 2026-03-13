@@ -24,7 +24,7 @@ export function useColorMode() {
 
 export function ColorModeProvider({ children }: { children: React.ReactNode }) {
   const [modeState, setModeState] = useState<ColorMode>('light');
-  const [uiModeState, setUiModeState] = useState<UIMode>('classic');
+  const [uiModeState, setUiModeState] = useState<UIMode>('mangaide');
 
   useEffect(() => {
     const savedMode = localStorage.getItem('color-mode');
