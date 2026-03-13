@@ -1,19 +1,86 @@
-/* Custom scrollbar for webkit */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --surface-light: rgba(255, 250, 244, 0.82);
+  --surface-dark: rgba(35, 28, 24, 0.82);
+  --border-light: rgba(113, 84, 68, 0.18);
+  --border-dark: rgba(241, 227, 213, 0.1);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(122, 91, 72, 0.65) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #18181b; 
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46; 
-  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(167, 109, 78, 0.72), rgba(91, 132, 123, 0.68));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b; 
+  background: linear-gradient(180deg, rgba(167, 109, 78, 0.86), rgba(91, 132, 123, 0.82));
 }
-/* RTL support for reader */
+
+#root {
+  min-height: 100vh;
+}
+
+.page-enter {
+  animation: page-enter 520ms var(--ease-out-expo);
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .direction-rtl {
   direction: rtl;
 }

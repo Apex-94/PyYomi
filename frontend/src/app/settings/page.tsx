@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography, Divider } from '@mui/material';
+import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography, Divider, ToggleButton, ToggleButtonGroup, Chip } from '@mui/material';
 import { getAppSettings, updateAppSetting } from '../../lib/api';
 import { useColorMode } from '../../theme/ColorModeContext';
 import TrackerSettings from '../../components/TrackerSettings';
@@ -73,21 +73,96 @@ export default function SettingsPage() {
 
   return (
     <Box sx={{ py: 1 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
         Settings
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 3, maxWidth: 760 }}>
+        Tune PyYomi around how you read: shape the layout, set reading defaults, and control downloads without digging through dense system screens.
       </Typography>
 
       {isLoading ? (
         <Typography color="text.secondary">Loading settings...</Typography>
       ) : (
         <Stack spacing={3}>
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium' }}>
-              General Settings
-            </Typography>
-            <Stack spacing={2}>
-              {saveMutation.isSuccess && <Alert severity="success">Settings saved.</Alert>}
-              {saveMutation.isError && <Alert severity="error">Failed to save settings.</Alert>}
+          <Paper sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2.5 }}>
+              <Box>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Reading Setup
+                </Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
+                  Keep the default experience calm and predictable, then switch into the denser IDE workspace only when you want more tooling on screen.
+                </Typography>
+              </Box>
+              <Chip label="Customizable by design" />
+            </Box>
+
+            <Stack spacing={2.25}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  Interface Mode
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  value={uiMode}
+                  onChange={(_event, nextValue) => {
+                    if (nextValue) {
+                      setUIMode(nextValue);
+                    }
+                  }}
+                  fullWidth
+                  sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, background: 'transparent', p: 0 }}
+                >
+                  <ToggleButton value="classic" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, justifyContent: 'flex-start', textAlign: 'left' }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800 }}>Classic</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Premium, reader-first layout with room to breathe.
+                      </Typography>
+                    </Box>
+                  </ToggleButton>
+                  <ToggleButton value="mangaide" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, justifyContent: 'flex-start', textAlign: 'left' }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800 }}>IDE</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Dense desktop workspace with explorer and preview panes.
+                      </Typography>
+                    </Box>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                  Color Mode
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  value={colorMode}
+                  onChange={(_event, nextValue) => {
+                    if (nextValue) {
+                      setColorMode(nextValue);
+                    }
+                  }}
+                  sx={{ width: '100%' }}
+                >
+                  <ToggleButton value="light" sx={{ flex: 1 }}>
+                    Light
+                  </ToggleButton>
+                  <ToggleButton value="dark" sx={{ flex: 1 }}>
+                    Dark
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {saveMutation.isSuccess && <Alert severity="success">Settings saved. Your reading environment is updated.</Alert>}
+              {saveMutation.isError && <Alert severity="error">Couldn&apos;t save these settings. Check the invalid field and try again.</Alert>}
+
+              <Divider />
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                Reader and Downloads
+              </Typography>
 
               <TextField
                 label="Max Concurrent Downloads"
@@ -103,7 +178,7 @@ export default function SettingsPage() {
                   onChange={(e) => setDownloadPath(e.target.value)}
                   fullWidth
                   error={downloadPath.length > 0 && !isAbsolutePath(downloadPath)}
-                  helperText={downloadPath.length > 0 && !isAbsolutePath(downloadPath) ? 'Use an absolute path.' : 'Downloads are saved as /path/<manga>/<chapter>/<pages>'}
+                  helperText={downloadPath.length > 0 && !isAbsolutePath(downloadPath) ? 'Use an absolute path.' : 'Downloads are saved as /path/<manga>/<chapter>/<pages>.'}
                 />
                 {canUseNativePicker && (
                   <Button
@@ -154,7 +229,7 @@ export default function SettingsPage() {
                 select
                 value={readerMode}
                 onChange={(e) => setReaderMode(e.target.value)}
-                helperText="Choose how pages are displayed by default."
+                helperText="Choose whether new chapters open one page at a time or as a vertical stack."
               >
                 <MenuItem value="single">Single page</MenuItem>
                 <MenuItem value="scroll">Vertical scroll</MenuItem>
@@ -164,47 +239,27 @@ export default function SettingsPage() {
                 select
                 value={readerDirection}
                 onChange={(e) => setReaderDirection(e.target.value)}
-                helperText="Choose page progression direction."
+                helperText="Choose how page navigation should advance by default."
               >
                 <MenuItem value="ltr">Left to right (LTR)</MenuItem>
                 <MenuItem value="rtl">Right to left (RTL)</MenuItem>
               </TextField>
-              <TextField
-                label="User Interface"
-                select
-                value={uiMode}
-                onChange={(e) => setUIMode(e.target.value as 'classic' | 'mangaide')}
-                helperText="Choose between classic layout and IDE layout."
-              >
-                <MenuItem value="classic">Classic</MenuItem>
-                <MenuItem value="mangaide">IDE</MenuItem>
-              </TextField>
-              <TextField
-                label="Color Mode"
-                select
-                value={colorMode}
-                onChange={(e) => setColorMode(e.target.value as 'light' | 'dark')}
-                helperText="Choose light or dark theme."
-              >
-                <MenuItem value="light">Light</MenuItem>
-                <MenuItem value="dark">Dark</MenuItem>
-              </TextField>
 
               <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
+                {saveMutation.isPending ? 'Saving...' : 'Save Reading Setup'}
               </Button>
             </Stack>
           </Paper>
 
           <Divider />
 
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <Paper sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
             <TrackerSettings />
           </Paper>
 
           <Divider />
 
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <Paper sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
             <BackupRestore />
           </Paper>
         </Stack>

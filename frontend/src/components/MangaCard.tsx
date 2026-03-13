@@ -216,11 +216,29 @@ export const MangaCard: React.FC<MangaCardProps> = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        borderRadius: 2,
+        p: 1,
+        background: theme.palette.mode === 'light'
+          ? 'linear-gradient(180deg, rgba(255,250,244,0.88), rgba(244,234,222,0.66))'
+          : 'linear-gradient(180deg, rgba(37,30,27,0.92), rgba(27,22,20,0.7))',
+        border: '1px solid',
+        borderColor: 'divider',
+        boxShadow: theme.palette.mode === 'light'
+          ? '0 16px 34px rgba(89, 58, 41, 0.08)'
+          : '0 16px 34px rgba(0, 0, 0, 0.22)',
+        transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms cubic-bezier(0.22, 1, 0.36, 1)',
         '&:hover .cover-img': { transform: 'scale(1.04)' },
         '&:hover .overlay-actions': {
           opacity: resolvedActionMode === 'overlay' ? 1 : undefined,
           transform: resolvedActionMode === 'overlay' ? 'translateY(0)' : undefined,
           pointerEvents: resolvedActionMode === 'overlay' ? 'auto' : undefined,
+        },
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          borderColor: theme.palette.mode === 'light' ? 'rgba(142, 59, 47, 0.22)' : 'rgba(213, 141, 107, 0.24)',
+          boxShadow: theme.palette.mode === 'light'
+            ? '0 24px 44px rgba(89, 58, 41, 0.12)'
+            : '0 24px 44px rgba(0, 0, 0, 0.3)',
         },
       }}
     >
@@ -229,7 +247,7 @@ export const MangaCard: React.FC<MangaCardProps> = ({
           aspectRatio: '2/3',
           overflow: 'hidden',
           borderRadius: 2,
-          mb: 1,
+          mb: 1.25,
           position: 'relative',
           bgcolor: 'action.hover',
           border: '1px solid',
@@ -258,13 +276,13 @@ export const MangaCard: React.FC<MangaCardProps> = ({
               right: 1.5,
               px: 1,
               py: 0.35,
-              borderRadius: 1,
-              bgcolor: manga.status === 'Ongoing' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(59, 130, 246, 0.9)',
-              color: '#fff',
+              borderRadius: 999,
+              bgcolor: manga.status === 'Ongoing' ? 'rgba(47, 108, 93, 0.92)' : 'rgba(56, 92, 87, 0.92)',
+              color: '#f8f1e7',
               fontSize: '0.625rem',
               fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: '0.02em',
+              letterSpacing: '0.08em',
               backdropFilter: 'blur(6px)',
             }}
           >
@@ -343,10 +361,10 @@ export const MangaCard: React.FC<MangaCardProps> = ({
       </Box>
 
       <Box sx={{ minHeight: 72, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Typography
+          <Typography
           variant="body2"
           sx={{
-            fontWeight: 600,
+            fontWeight: 800,
             lineHeight: 1.35,
             color: 'text.primary',
             display: '-webkit-box',
@@ -365,6 +383,8 @@ export const MangaCard: React.FC<MangaCardProps> = ({
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            fontWeight: 700,
+            letterSpacing: '0.02em',
           }}
         >
           {manga.genres?.[0] || manga.author || sourceLabel || 'Unknown'}

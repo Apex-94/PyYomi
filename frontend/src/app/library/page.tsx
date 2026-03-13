@@ -303,16 +303,6 @@ export default function LibraryPage() {
             />
           )}
 
-          {data && data.length > 0 && !isMangaIDE && totalPages > 1 && (
-            <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
-              <Pagination
-                page={page}
-                count={totalPages}
-                onChange={(_event, value) => setPage(value)}
-                color="primary"
-              />
-            </Box>
-          )}
         </>
       )}
 
