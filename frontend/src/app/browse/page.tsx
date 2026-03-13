@@ -297,7 +297,7 @@ export default function BrowsePage() {
   };
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1360, mx: "auto" }}>
       {!isMangaIDE && (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: SECTION_GAP }}>
           <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.5rem", md: "1.9rem" } }}>
@@ -308,14 +308,17 @@ export default function BrowsePage() {
 
       <Paper
         sx={{
-          p: 2,
-          borderRadius: 2,
+          p: { xs: 1.25, sm: 1.5 },
+          borderRadius: 1,
           border: 1,
           borderColor: "divider",
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: 1.5,
-          alignItems: { xs: "stretch", md: "center" },
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "auto minmax(0, 1fr) auto",
+          },
+          gap: 1.25,
+          alignItems: "center",
         }}
       >
         <ToggleButtonGroup
@@ -324,14 +327,15 @@ export default function BrowsePage() {
           onChange={(_e, newTab) => newTab && setTab(newTab)}
           size="small"
           sx={{
-            height: 40,
-            flexShrink: 0,
+            width: { xs: "100%", md: "auto" },
+            justifySelf: { xs: "stretch", md: "start" },
             "& .MuiToggleButton-root": {
-              px: 1.5,
+              px: { xs: 1.25, sm: 1.5 },
               py: 0.75,
               minHeight: 40,
               textTransform: "uppercase",
               fontWeight: 600,
+              borderRadius: 1,
             },
           }}
         >
@@ -342,7 +346,7 @@ export default function BrowsePage() {
 
         <TextField
           value={q}
-              onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => setQ(e.target.value)}
           placeholder="Search manga"
           size="small"
           fullWidth
@@ -355,9 +359,10 @@ export default function BrowsePage() {
             }
           }}
           sx={{
+            minWidth: 0,
             "& .MuiOutlinedInput-root": {
               minHeight: 40,
-              borderRadius: 1.5,
+              borderRadius: 1,
             },
           }}
         />
@@ -368,8 +373,9 @@ export default function BrowsePage() {
           sx={{
             height: 40,
             width: 40,
+            justifySelf: { xs: "end", md: "center" },
             border: 1,
-            borderRadius: 1.5,
+            borderRadius: 1,
             borderColor: showFilters || activeFilters.length > 0 ? "primary.main" : "divider",
             color: showFilters || activeFilters.length > 0 ? "primary.main" : "text.secondary",
             bgcolor: showFilters || activeFilters.length > 0 ? "action.selected" : "transparent",
@@ -534,11 +540,12 @@ export default function BrowsePage() {
               display: "grid",
               gap: 2,
               gridTemplateColumns: {
-                xs: "repeat(2, minmax(150px, 1fr))",
-                sm: "repeat(auto-fill, minmax(180px, 1fr))",
-                md: "repeat(auto-fill, minmax(210px, 1fr))",
-                lg: "repeat(auto-fill, minmax(240px, 1fr))",
+                xs: "repeat(2, minmax(0, 1fr))",
+                sm: "repeat(auto-fill, minmax(200px, 1fr))",
+                md: "repeat(auto-fill, minmax(220px, 1fr))",
+                lg: "repeat(auto-fill, minmax(220px, 1fr))",
               },
+              alignItems: "start",
             }}
           >
             {browseItems.map((it, i) => {
