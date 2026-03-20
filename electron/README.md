@@ -5,17 +5,14 @@ Alternative desktop packaging using Electron instead of Tauri.
 ## Quick Start
 
 ```bash
-# Install dependencies
-cd electron
-npm install
+# From the repo root, bootstrap and launch the desktop app
+npm run app:dev
 
-# Run in development mode
-npm start
-
-# Build for Windows
-npm run build:win
+# Build the Windows release installer
+npm run app:release:win
 
 # Build for macOS
+cd electron
 npm run build:mac
 
 # Build for Linux
@@ -44,6 +41,8 @@ Build artifacts are in `electron/release-electron/`:
 - Windows: `.exe` installer
 - macOS: `.dmg` disk image
 - Linux: `.AppImage`
+
+The canonical app version is stored in `release.json` at the repo root and synced into Electron metadata before packaging.
 
 ## Comparison with Tauri
 

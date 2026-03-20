@@ -65,6 +65,20 @@ export const getProxyUrl = (imageUrl: string, source?: string): string => {
     return `${api.defaults.baseURL}/proxy?${params.toString()}`;
 };
 
+export const resolveImageUrl = async (imageUrl: string, source?: string): Promise<string> => {
+    const isDirectImage =
+        /\.(jpg|jpeg|png|gif|webp)($|\?)/i.test(imageUrl) || imageUrl.includes('picsum');
+
+    if (isDirectImage) {
+        return getProxyUrl(imageUrl, source);
+    }
+
+    const response = await api.get('/manga/resolve', {
+        params: { url: imageUrl, source }
+    });
+    return response.data.url as string;
+};
+
 export const getReaderSettings = async (userId: string): Promise<ReaderSettings> => {
     const response = await api.get(`/reader/settings/${userId}`);
     return response.data;

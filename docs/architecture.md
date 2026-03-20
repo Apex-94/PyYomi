@@ -46,8 +46,14 @@ The legacy Tauri runtime has been removed from active source paths.
 ## CI and release automation
 
 - `ci.yml`: typecheck/build/package smoke checks
-- `auto-version-tag.yml`: auto-creates next SemVer tag on `main`
-- `release-electron.yml`: builds and publishes release assets for version tags
+- `auto-version-tag.yml`: deprecated placeholder kept to avoid accidental auto-tagging
+- `release-electron.yml`: manually bumps version, tags, builds, and publishes Windows release assets
+
+## Version source of truth
+
+- `release.json` is the single authoritative app version.
+- `scripts/app-cli.js` syncs that version into Electron package metadata before packaging.
+- Electron preload reads the packaged app version from the running app metadata, not a hardcoded file path.
 
 ## Current constraints
 

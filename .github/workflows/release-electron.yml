@@ -1,9 +1,32 @@
 name: Release Electron
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_version:
+        description: "Custom version when release_type=custom"
+        required: false
+        type: string
+      prerelease:
+        description: "Publish as prerelease"
+        required: true
+        default: false
+        type: boolean
+      channel:
+        description: "Prerelease channel (beta, rc, etc.)"
+        required: false
+        default: "beta"
+        type: string
 
 jobs:
   release-windows:
@@ -12,6 +35,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -25,29 +50,42 @@ jobs:
             frontend/package-lock.json
             electron/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
-      - name: Build bundled backend exe
+      - name: Bump canonical version and sync Electron metadata
+        id: version
         shell: powershell
         run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt pyinstaller
-          Set-Location backend
-          pyinstaller pyinstaller.spec --clean
+          $args = @(
+            "scripts/app-cli.js",
+            "version:bump",
+            "--release-type", "${{ inputs.release_type }}",
+            "--channel", "${{ inputs.channel }}",
+            "--prerelease", "${{ inputs.prerelease }}",
+            "--github-output", $env:GITHUB_OUTPUT
+          )
 
-      - name: Install electron dependencies
-        working-directory: electron
-        run: npm ci
+          if ("${{ inputs.custom_version }}") {
+            $args += @("--custom-version", "${{ inputs.custom_version }}")
+          }
+
+          & node @args
+
+      - name: Commit and push version bump
+        shell: powershell
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add release.json electron/package.json electron/package-lock.json
+          git commit -m "release: ${{ steps.version.outputs.version }}"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Create and push annotated tag
+        shell: powershell
+        run: |
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Build Windows installer
-        working-directory: electron
-        run: npm run build:win
+        run: npm run app:release:win -- --ci
 
       - name: Collect release assets
         shell: powershell
@@ -59,8 +97,10 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           files: |
             release-assets/*.exe
             release-assets/*.blockmap
-          prerelease: ${{ contains(github.ref_name, 'beta') }}
+          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}

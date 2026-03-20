@@ -2,6 +2,10 @@
   "name": "pyyomi-root",
   "private": true,
   "scripts": {
+    "app:dev": "node scripts/app-cli.js dev",
+    "app:release:win": "node scripts/app-cli.js release:win",
+    "version:sync": "node scripts/app-cli.js version:sync",
+    "version:bump": "node scripts/app-cli.js version:bump",
     "frontend:install": "npm install --prefix frontend",
     "frontend:build": "npm run build --prefix frontend",
     "frontend:typecheck": "cd frontend && npx tsc --noEmit",

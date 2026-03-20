@@ -13,18 +13,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartApp: () => ipcRenderer.send('restart-app'),
   selectDownloadPath: () => ipcRenderer.invoke('select-download-path'),
   backendUrl: backendUrl || null,
-  
+
   // Platform info
   platform: process.platform,
-  
+
   // Version info
-  getVersion: () => {
-    try {
-      const fs = require('fs');
-      const packageJson = JSON.parse(fs.readFileSync('../../package.json', 'utf8'));
-      return packageJson.version || '1.0.0';
-    } catch {
-      return '1.0.0';
-    }
-  }
+  getVersion: () => ipcRenderer.sendSync('get-app-version')
 });
