@@ -227,10 +227,13 @@ function startBackend() {
       backendProcess = null;
     });
 
-    const ready = await waitForBackendReady(healthUrl, 20000);
+    const backendReadyTimeoutMs = app.isPackaged ? 45000 : 20000;
+    const ready = await waitForBackendReady(healthUrl, backendReadyTimeoutMs);
     if (!ready) {
       console.error('Backend health check failed:', healthUrl);
-      appendElectronLog(`Backend health check failed: ${healthUrl}`);
+      appendElectronLog(
+        `Backend health check failed after ${backendReadyTimeoutMs}ms: ${healthUrl}`
+      );
       stopManagedProcesses();
       resolve(false);
       return;
@@ -503,7 +506,11 @@ app.on('activate', () => {
 });
 
 ipcMain.on('get-app-path', (event) => {
-  event.reply('app-path', app.getAppPath());
+  event.returnValue = app.getAppPath();
+});
+
+ipcMain.on('get-app-version', (event) => {
+  event.returnValue = app.getVersion();
 });
 
 ipcMain.on('restart-app', () => {

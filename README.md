@@ -41,21 +41,19 @@ This app is designed for:
 ```powershell
 git clone https://github.com/Apex-94/PyYomi.git
 cd PyYomi
-npm run frontend:install
-npm run electron:install
+npm run app:dev
 ```
 
 ### Run desktop app in dev mode
 
 ```powershell
-npm run frontend:build
-npm run electron:dev
+npm run app:dev
 ```
 
 ### Build release installer
 
 ```powershell
-npm run electron:build:win
+npm run app:release:win
 ```
 
 Output installer is created in:
@@ -164,9 +162,11 @@ If troubleshooting, check:
 
 ## Notes for Maintainers
 
-- Tag workflow: `.github/workflows/auto-version-tag.yml`
-- Release workflow: `.github/workflows/release-electron.yml`
-- Electron artifact name uses app version in `electron/package.json` unless overridden in builder config
+- Canonical app version lives in `release.json`
+- Sync Electron package metadata locally with `npm run version:sync`
+- Create releases from GitHub Actions via `.github/workflows/release-electron.yml`
+- The legacy `.github/workflows/auto-version-tag.yml` no longer creates tags automatically
+- Electron artifact names and runtime version are synced from `release.json`
 
 ## License
 

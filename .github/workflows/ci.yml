@@ -60,30 +60,8 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             frontend/package-lock.json
             electron/package-lock.json
 
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
-      - name: Build bundled backend exe
-        shell: powershell
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt pyinstaller
-          Set-Location backend
-          pyinstaller pyinstaller.spec --clean
-
-      - name: Install electron dependencies
-        working-directory: electron
-        run: npm ci
-
       - name: Build unpacked windows app (smoke)
-        working-directory: electron
-        run: npm run build -- --win --dir
+        run: npm run app:release:win -- --ci --smoke

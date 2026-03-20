@@ -1,11 +1,18 @@
-param()
+param(
+  [string]$PythonPath,
+  [switch]$InstallDependencies,
+  [switch]$Clean,
+  [switch]$SkipPipUpgrade
+)
 
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $backendDir = Join-Path $repoRoot 'backend'
 
-$pythonPath = if (Test-Path (Join-Path $backendDir 'venv\Scripts\python.exe')) {
+$resolvedPythonPath = if ($PythonPath) {
+  $PythonPath
+} elseif (Test-Path (Join-Path $backendDir 'venv\Scripts\python.exe')) {
   Join-Path $backendDir 'venv\Scripts\python.exe'
 } elseif (Test-Path (Join-Path $backendDir '.venv\Scripts\python.exe')) {
   Join-Path $backendDir '.venv\Scripts\python.exe'
@@ -13,14 +20,24 @@ $pythonPath = if (Test-Path (Join-Path $backendDir 'venv\Scripts\python.exe')) {
   'python'
 }
 
-Write-Host "Using Python: $pythonPath"
+Write-Host "Using Python: $resolvedPythonPath"
 
 Push-Location $backendDir
 try {
-  & $pythonPath -m pip install --upgrade pip
-  & $pythonPath -m pip install -r requirements.txt
-  & $pythonPath -m pip install pyinstaller
-  & $pythonPath -m PyInstaller pyinstaller.spec --clean
+  if ($InstallDependencies) {
+    if (-not $SkipPipUpgrade) {
+      & $resolvedPythonPath -m pip install --upgrade pip
+    }
+    & $resolvedPythonPath -m pip install -r requirements.txt
+    & $resolvedPythonPath -m pip install pyinstaller
+  }
+
+  $pyInstallerArgs = @('-m', 'PyInstaller', 'pyinstaller.spec')
+  if ($Clean) {
+    $pyInstallerArgs += '--clean'
+  }
+
+  & $resolvedPythonPath @pyInstallerArgs
 } finally {
   Pop-Location
 }
