@@ -6,13 +6,21 @@ from the `app.extensions` package. A source is selected by its key
 (`name:language`) or defaults to `mangahere:en` if unspecified.
 """
 
+import asyncio
 import json
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.extensions.loader import registry
 from app.extensions.base import Filter
+from app.services.global_search import global_search_sessions
 
 router = APIRouter()
+
+
+class GlobalSearchSessionCreateRequest(BaseModel):
+    q: str
+    page: int = 1
 
 
 def _pick_source(source_key: str | None):
@@ -75,6 +83,76 @@ async def search(
 
     results = await scraper.search(q, page, filters=parsed_filters)
     return {"results": [c.__dict__ for c in results], "page": page}
+
+
+@router.get("/search/global")
+async def global_search(
+    q: str = Query(..., description="Search query string"),
+    page: int = Query(1, ge=1, description="Result page number"),
+):
+    """
+    Search for manga titles across all loaded sources.
+
+    This skips source-specific filters because filter definitions differ per
+    source. Individual source failures are ignored so one broken scraper does
+    not fail the entire global search.
+    """
+    query = q.strip()
+    if not query:
+        return {"results": [], "page": page}
+
+    source_items = list(registry._sources.items())
+
+    async def search_source(source_key: str, scraper):
+        try:
+            cards = await scraper.search(query, page, filters=None)
+        except Exception:
+            return []
+
+        normalized = []
+        for card in cards:
+            payload = card.__dict__.copy()
+            payload["source"] = payload.get("source") or source_key
+            normalized.append(payload)
+        return normalized
+
+    results_by_source = await asyncio.gather(
+        *(search_source(source_key, scraper) for source_key, scraper in source_items)
+    )
+
+    seen: set[tuple[str, str]] = set()
+    merged = []
+    for source_results in results_by_source:
+        for item in source_results:
+            key = (item.get("source", ""), item.get("url", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+
+    return {"results": merged, "page": page}
+
+
+@router.post("/search/global/sessions")
+async def create_global_search_session(request: GlobalSearchSessionCreateRequest):
+    query = request.q.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Search query is required")
+
+    snapshot = await global_search_sessions.create_session(
+        query,
+        request.page,
+        list(registry._sources.items()),
+    )
+    return snapshot
+
+
+@router.get("/search/global/sessions/{session_id}")
+async def get_global_search_session(session_id: str):
+    try:
+        return await global_search_sessions.get_snapshot(session_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Global search session {session_id} not found") from exc
 
 
 @router.get("/filters")

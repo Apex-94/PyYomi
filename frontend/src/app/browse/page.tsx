@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, addToLibrary, getProxyUrl } from "../../lib/api";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { MangaCard } from "../../components/MangaCard";
+import GlobalSearchDesk from "../../components/GlobalSearchDesk";
 import {
   Box,
   Typography,
@@ -22,32 +23,24 @@ import { SECTION_GAP } from "../../constants/layout";
 import { useLibraryState } from "../../hooks/useLibraryState";
 import LibraryFeedbackSnackbar from "../../components/LibraryFeedbackSnackbar";
 import SetCategoriesPicker from "../../components/SetCategoriesPicker";
-import { LibraryAddResponse } from "../../types";
+import { LibraryAddResponse, SearchResultItem } from "../../types";
 import { useMangaIDEPreview } from "../../components/mangaide/MangaIDEPreviewContext";
 import { useColorMode } from "../../theme/ColorModeContext";
 import { useAniListMetadataMap } from "../../hooks/useAniListMetadataMap";
 import MangaIDECenterTable from "../../components/mangaide/MangaIDECenterTable";
 
-interface MangaCardItem {
-  title: string;
-  url: string;
-  thumbnail_url?: string;
-  source: string;
-  description?: string;
-  genres?: string[];
-  status?: string;
-}
+type MangaCardItem = SearchResultItem;
 
 function toMangaCardPayload(item: MangaCardItem) {
   return {
     title: item.title,
     url: item.url,
-    thumbnail_url: item.thumbnail_url,
+    thumbnail_url: item.thumbnail_url ?? undefined,
     source: item.source || "",
   };
 }
 
-function normalizeStatus(raw?: string): "Ongoing" | "Completed" | "Hiatus" {
+function normalizeStatus(raw?: string | null): "Ongoing" | "Completed" | "Hiatus" {
   const value = (raw || "").trim().toLowerCase();
   if (value.includes("complete")) return "Completed";
   if (value.includes("hiatus")) return "Hiatus";
@@ -59,8 +52,11 @@ export default function BrowsePage() {
   const { setPreview } = useMangaIDEPreview();
   const { uiMode } = useColorMode();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [searchScope, setSearchScope] = useState<"source" | "global">(
+    searchParams.get("scope") === "global" ? "global" : "source"
+  );
   const [tab, setTab] = useState<"latest" | "popular" | "random">("latest");
-  const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [draftQuery, setDraftQuery] = useState(searchParams.get("q") ?? "");
   const [page, setPage] = useState<number>(() => {
     const raw = Number(searchParams.get("page") ?? "1");
     return Number.isFinite(raw) && raw > 0 ? raw : 1;
@@ -83,13 +79,22 @@ export default function BrowsePage() {
   const { isInLibrary, getLibraryManga, applyAddResult, removeByUrl } = useLibraryState();
   const submittedQuery = searchParams.get("q") ?? "";
 
-  const syncBrowseParams = (nextPage: number, nextQuery = submittedQuery) => {
+  const syncBrowseParams = (
+    nextPage: number,
+    nextQuery = submittedQuery,
+    nextScope = searchScope
+  ) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (nextQuery.trim()) {
         next.set("q", nextQuery.trim());
       } else {
         next.delete("q");
+      }
+      if (nextScope === "global") {
+        next.set("scope", "global");
+      } else {
+        next.delete("scope");
       }
       if (nextPage > 1) {
         next.set("page", String(nextPage));
@@ -109,17 +114,18 @@ export default function BrowsePage() {
   });
 
   const activeSource = sourcesData?.sources?.find((s: any) => s.is_active);
+  const isGlobalSearch = searchScope === "global";
 
   const { data: filtersData } = useQuery({
-    queryKey: ["filters", activeSource?.id],
+    queryKey: ["filters", activeSource?.id, isGlobalSearch],
     queryFn: async () => {
-      if (!activeSource) return { filters: [] };
+      if (!activeSource || isGlobalSearch) return { filters: [] };
       const resp = await api.get(`/manga/filters`, {
         params: { source: activeSource.id },
       });
       return resp.data;
     },
-    enabled: !!activeSource,
+    enabled: !!activeSource && !isGlobalSearch,
   });
 
   const handleFilterChange = (filterId: string, value: any) => {
@@ -137,7 +143,7 @@ export default function BrowsePage() {
 
   const clearFilters = () => {
     setActiveFilters([]);
-    setQ("");
+    setDraftQuery("");
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete("q");
@@ -147,8 +153,12 @@ export default function BrowsePage() {
 
   useEffect(() => {
     const urlQ = searchParams.get("q") ?? "";
-    if (urlQ !== q) {
-      setQ(urlQ);
+    if (urlQ !== draftQuery) {
+      setDraftQuery(urlQ);
+    }
+    const nextScope = searchParams.get("scope") === "global" ? "global" : "source";
+    if (nextScope !== searchScope) {
+      setSearchScope(nextScope);
     }
     const rawPage = Number(searchParams.get("page") ?? "1");
     const nextPage = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -162,17 +172,17 @@ export default function BrowsePage() {
       setPage(1);
       syncBrowseParams(1);
     }
-  }, [tab, activeSource?.id, submittedQuery, activeFilters]);
+  }, [tab, activeSource?.id, submittedQuery, activeFilters, searchScope]);
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["browse", tab, submittedQuery, activeFilters, activeSource?.id, page],
+  const sourceBrowseQuery = useQuery({
+    queryKey: ["browse", tab, submittedQuery, activeFilters, activeSource?.id, page, searchScope],
     queryFn: async () => {
       if (submittedQuery.trim() || activeFilters.length > 0) {
         const params: any = { q: submittedQuery.trim() || "", page };
-        if (activeFilters.length > 0) {
+        if (!isGlobalSearch && activeFilters.length > 0) {
           params.filters = JSON.stringify(activeFilters);
         }
-        if (activeSource) {
+        if (!isGlobalSearch && activeSource) {
           params.source = activeSource.id;
         }
         const resp = await api.get(`/manga/search`, { params });
@@ -186,6 +196,7 @@ export default function BrowsePage() {
       const resp = await api.get(endpoint, { params });
       return resp.data;
     },
+    enabled: !isGlobalSearch,
   });
 
   const removeMutation = useMutation({
@@ -236,7 +247,7 @@ export default function BrowsePage() {
     },
   });
 
-  const browseItems: MangaCardItem[] = useMemo(() => data?.results || [], [data?.results]);
+  const browseItems: MangaCardItem[] = useMemo(() => sourceBrowseQuery.data?.results || [], [sourceBrowseQuery.data?.results]);
   const hasBrowseResults = browseItems.length > 0;
   const canGoNextPage = tab !== "random" && hasBrowseResults;
   const isMangaIDE = uiMode === "mangaide";
@@ -255,7 +266,7 @@ export default function BrowsePage() {
       source: item.source,
       author: meta?.author || undefined,
       artist: meta?.artist || undefined,
-      description: meta?.description || item.description,
+      description: meta?.description || item.description || undefined,
       mangaUrl: item.url,
       sourceId: item.source,
       chapters: meta?.chapters,
@@ -315,7 +326,7 @@ export default function BrowsePage() {
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
-            md: "auto minmax(0, 1fr) auto",
+            md: "auto minmax(0, 1fr) auto auto",
           },
           gap: 1.25,
           alignItems: "center",
@@ -345,17 +356,16 @@ export default function BrowsePage() {
         </ToggleButtonGroup>
 
         <TextField
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search manga"
+          value={draftQuery}
+          onChange={(e) => setDraftQuery(e.target.value)}
+          placeholder={isGlobalSearch ? "Search all sources" : "Search manga"}
           size="small"
           fullWidth
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const normalized = q.trim();
+              const normalized = draftQuery.trim();
               setPage(1);
               syncBrowseParams(1, normalized);
-              void refetch();
             }
           }}
           sx={{
@@ -367,9 +377,40 @@ export default function BrowsePage() {
           }}
         />
 
+        <ToggleButtonGroup
+          value={searchScope}
+          exclusive
+          onChange={(_e, nextScope) => {
+            if (!nextScope) return;
+            setSearchScope(nextScope);
+            if (nextScope === "global") {
+              setShowFilters(false);
+              setActiveFilters([]);
+            }
+            setPage(1);
+            syncBrowseParams(1, draftQuery, nextScope);
+          }}
+          size="small"
+          sx={{
+            width: { xs: "100%", md: "auto" },
+            justifySelf: { xs: "stretch", md: "start" },
+            "& .MuiToggleButton-root": {
+              minHeight: 40,
+              px: 1.25,
+              textTransform: "none",
+              fontWeight: 700,
+              borderRadius: 1,
+            },
+          }}
+        >
+          <ToggleButton value="source">This source</ToggleButton>
+          <ToggleButton value="global">Global</ToggleButton>
+        </ToggleButtonGroup>
+
         <IconButton
           onClick={() => setShowFilters(!showFilters)}
-          title="Filters"
+          title={isGlobalSearch ? "Filters are only available for source search" : "Filters"}
+          disabled={isGlobalSearch}
           sx={{
             height: 40,
             width: 40,
@@ -377,7 +418,7 @@ export default function BrowsePage() {
             border: 1,
             borderRadius: 1,
             borderColor: showFilters || activeFilters.length > 0 ? "primary.main" : "divider",
-            color: showFilters || activeFilters.length > 0 ? "primary.main" : "text.secondary",
+            color: isGlobalSearch ? "text.disabled" : (showFilters || activeFilters.length > 0 ? "primary.main" : "text.secondary"),
             bgcolor: showFilters || activeFilters.length > 0 ? "action.selected" : "transparent",
           }}
         >
@@ -385,7 +426,7 @@ export default function BrowsePage() {
         </IconButton>
       </Paper>
 
-      {showFilters && filtersData?.filters && (
+      {showFilters && !isGlobalSearch && filtersData?.filters && (
         <Paper
           sx={{
             mt: SECTION_GAP,
@@ -487,14 +528,31 @@ export default function BrowsePage() {
         </Paper>
       )}
 
-      {isLoading ? (
+      {isGlobalSearch ? (
+        <GlobalSearchDesk
+          query={submittedQuery}
+          page={page}
+          activeSourceId={activeSource?.id}
+          pendingUrls={pendingUrls}
+          isInLibrary={isInLibrary}
+          getLibraryManga={getLibraryManga}
+          onAddToLibrary={(item) => addMutation.mutate(item)}
+          onRemoveFromLibrary={(url) => removeMutation.mutate(url)}
+          onPreview={publishPreview}
+          onOpenLibrary={() => navigate('/library')}
+          onSetCategories={(mangaId, mangaTitle) => {
+            setPickerManga({ id: mangaId, title: mangaTitle });
+            setPickerOpen(true);
+          }}
+        />
+      ) : sourceBrowseQuery.isLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
           <CircularProgress color="primary" />
         </Box>
       ) : isMangaIDE ? (
         <Box sx={{ mt: 3 }}>
           <MangaIDECenterTable
-            title={`Browse - ${activeSource?.id || "Source"}`}
+            title={isGlobalSearch ? "Browse - Global search" : `Browse - ${activeSource?.id || "Source"}`}
             itemCount={sortedBrowseItems.length}
             page={page}
             totalPages={canGoNextPage ? page + 1 : page}

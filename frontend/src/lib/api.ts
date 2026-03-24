@@ -15,6 +15,7 @@ import {
     FuzzyDate,
     TrackerMapping,
     SyncQueueItem,
+    GlobalSearchSessionSnapshot,
 } from '../types';
 
 export const api = axios.create();
@@ -143,6 +144,21 @@ export const addToLibrary = async (payload: {
 }): Promise<LibraryAddResponse> => {
     const response = await api.post('/library', payload);
     return response.data;
+};
+
+export const createGlobalSearchSession = async (
+    query: string,
+    page = 1,
+): Promise<GlobalSearchSessionSnapshot> => {
+    const response = await api.post('/manga/search/global/sessions', { q: query, page });
+    return response.data as GlobalSearchSessionSnapshot;
+};
+
+export const getGlobalSearchSession = async (
+    sessionId: string,
+): Promise<GlobalSearchSessionSnapshot> => {
+    const response = await api.get(`/manga/search/global/sessions/${sessionId}`);
+    return response.data as GlobalSearchSessionSnapshot;
 };
 
 export const getReadingHistory = async (): Promise<HistoryEntry[]> => {

@@ -23,11 +23,23 @@ The legacy Tauri runtime has been removed from active source paths.
 3. Backend fetches local DB data and/or source extension scraping results.
 4. Response rendered in frontend.
 
+### Progressive global search flow
+
+Global search now uses a session-based polling model instead of one blocking merged request:
+
+1. Frontend creates a session with `POST /api/v1/manga/search/global/sessions`.
+2. Backend spawns concurrent per-source searches with bounded concurrency and per-source timeout.
+3. Frontend polls `GET /api/v1/manga/search/global/sessions/{session_id}`.
+4. UI renders completed sources immediately as source lanes while pending/running sources remain in summary state.
+
+The legacy `GET /api/v1/manga/search/global` endpoint remains available as a compatibility fallback, but the browse UI no longer relies on it.
+
 ## Backend modules
 
 - `app/api/`: API routers (`library`, `manga`, `sources`, `categories`, etc.)
 - `app/db/`: models/session/migrations
 - `app/extensions/`: source plugins and loader registry
+- `app/services/global_search.py`: in-memory progressive global-search session manager
 
 ## Frontend modules
 
@@ -35,6 +47,12 @@ The legacy Tauri runtime has been removed from active source paths.
 - `src/components/`: reusable UI
 - `src/lib/api.ts`: axios base config and API helpers
 - `src/hooks/`: shared state hooks
+
+### Browse search behavior
+
+- Source search stays request/response based and uses the active source.
+- Global search uses a dedicated search-desk surface and progressive source lanes.
+- AniList enrichment is deferred per finished lane so base search results render before metadata decoration.
 
 ## Desktop packaging
 
@@ -59,3 +77,4 @@ The legacy Tauri runtime has been removed from active source paths.
 
 - Windows build is primary validated release target.
 - Large frontend bundle warning exists; code splitting can be addressed separately.
+- Progressive global search sessions are stored in-process in backend memory, which is acceptable for the current single-process desktop runtime.

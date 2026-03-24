@@ -185,7 +185,7 @@ See the [MangaHere extension](../backend/app/extensions/mangahere/) for a comple
 
 Use the following endpoints to test your extension:
 
-- Search: `/api/v1/manga/search?query=one+piece&source=myextension:en`
+- Search: `/api/v1/manga/search?q=one+piece&source=myextension:en`
 - Popular: `/api/v1/manga/popular?source=myextension:en`
 - Latest: `/api/v1/manga/latest?source=myextension:en`
 - Details: `/api/v1/manga/details?url=<manga_url>&source=myextension:en`
