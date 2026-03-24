@@ -12,6 +12,7 @@ This app is designed for:
 ## What You Can Do
 
 - Browse latest/popular/search manga from active source
+- Run global search across all loaded sources with progressive source-lane results
 - Add manga to Library and organize categories
 - Open manga details, chapter list, and chapter downloads
 - Read chapters with keyboard navigation
@@ -73,8 +74,17 @@ Output installer is created in:
 ### Browse
 
 - Search and filter manga from current source
+- Switch search scope between `This source` and `Global`
+- Global search streams source lanes as each source finishes instead of waiting for one combined response
 - Switch between latest/popular/random
 - Add directly to Library
+
+### Global Search
+
+- `This source` uses the active source and keeps source-specific filters enabled
+- `Global` searches all loaded sources and disables source-specific filters because each source exposes different filter schemas
+- Progressive global search updates the UI source-by-source while slower sources continue running
+- The active source lane is pinned first if it completes; other finished sources follow in completion order
 
 ### Manga Details
 
@@ -167,6 +177,9 @@ If troubleshooting, check:
 - Create releases from GitHub Actions via `.github/workflows/release-electron.yml`
 - The legacy `.github/workflows/auto-version-tag.yml` no longer creates tags automatically
 - Electron artifact names and runtime version are synced from `release.json`
+- Global search now has two backend paths:
+  - `GET /api/v1/manga/search/global` for legacy one-shot merged responses
+  - `POST /api/v1/manga/search/global/sessions` plus `GET /api/v1/manga/search/global/sessions/{session_id}` for progressive polling
 
 ## License
 

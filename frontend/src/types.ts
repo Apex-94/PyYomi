@@ -112,6 +112,41 @@ export interface LibraryAddResponse {
   libraryEntryId?: number | null;
 }
 
+export interface SearchResultItem {
+  title: string;
+  url: string;
+  thumbnail_url?: string | null;
+  source: string;
+  description?: string | null;
+  genres?: string[] | null;
+  status?: string | null;
+}
+
+export type GlobalSearchSourceStatus = 'pending' | 'running' | 'complete' | 'failed' | 'timed_out';
+
+export interface GlobalSearchSessionSource {
+  source_id: string;
+  source_name: string;
+  status: GlobalSearchSourceStatus;
+  result_count: number;
+  results: SearchResultItem[];
+  error: string | null;
+}
+
+export interface GlobalSearchSessionSnapshot {
+  session_id: string;
+  query: string;
+  page: number;
+  done: boolean;
+  total_sources: number;
+  pending_sources: number;
+  running_sources: number;
+  completed_sources: number;
+  failed_sources: number;
+  timed_out_sources: number;
+  sources: GlobalSearchSessionSource[];
+}
+
 export type ViewState = 'HOME' | 'DETAIL' | 'READER';
 
 export type ReadingMode = 'VERTICAL' | 'SINGLE' | 'DOUBLE';
