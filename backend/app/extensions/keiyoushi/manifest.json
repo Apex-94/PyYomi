@@ -1,0 +1,13 @@
+{
+  "name": "Keiyoushi",
+  "language": "en",
+  "version": "1.0.0",
+  "base_urls": [
+    "https://mangadex.org"
+  ],
+  "generated": false,
+  "upstream_slug": "keiyoushi",
+  "theme": "custom",
+  "nsfw": false,
+  "description": "Keiyoushi - Uses JVM service to execute Keiyoushi/extensions-source extensions."
+}

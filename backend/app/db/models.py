@@ -141,3 +141,25 @@ class AniListMetadataCache(SQLModel, table=True):
     query: str = Field(index=True, unique=True)
     value_json: str
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class ExtensionPackage(SQLModel, table=True):
+    """An installed extension package from a repo (e.g., Keiyoushi repo)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    package_id: str = Field(unique=True, index=True)  # e.g., "eu.kanade.tachiyomi.extension.en.mangadex"
+    name: str
+    version: str
+    repo_url: str
+    enabled: bool = True
+    installed_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RuntimeSource(SQLModel, table=True):
+    """A runtime source exposed by an installed package (supports SourceFactory pattern)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    source_id: str = Field(unique=True, index=True)  # e.g., "mangadex-en"
+    package_id: str = Field(index=True)  # References ExtensionPackage.package_id
+    name: str
+    lang: str
+    base_url: Optional[str] = None
+    is_enabled: bool = True
