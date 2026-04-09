@@ -21,7 +21,7 @@ interface ReaderProps {
 
 const DEFAULT_SETTINGS: ReaderSettings = {
   readingMode: 'VERTICAL',
-  zoomMode: 'FIT_WIDTH',
+  zoomMode: 'FIT_HEIGHT',
   customZoom: 100,
   autoScroll: false,
   scrollSpeed: 50,

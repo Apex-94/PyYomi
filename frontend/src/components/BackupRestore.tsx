@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Button,
@@ -38,6 +39,7 @@ const EMPTY_STATS: RestoreStats = {
 };
 
 export default function BackupRestore() {
+  const queryClient = useQueryClient();
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<RestoreResult | null>(null);
@@ -72,6 +74,7 @@ export default function BackupRestore() {
       const backupData = await readBackupFile(selectedFile);
       const result = await importBackup(backupData);
       setImportResult(result);
+      await queryClient.invalidateQueries();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
       setImportResult({

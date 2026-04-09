@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -69,6 +69,7 @@ const CategoriesPage: React.FC = () => {
   type SnackbarSeverity = 'success' | 'error';
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const { uiMode } = useColorMode();
   const { setPreview } = useMangaIDEPreview();
@@ -446,7 +447,9 @@ const CategoriesPage: React.FC = () => {
               onRowDoubleClick={(row) => {
                 const manga = sortedCategoryManga.find((entry) => entry.url === row.id);
                 if (!manga) return;
-                navigate(`/manga?url=${encodeURIComponent(manga.url)}&source=${encodeURIComponent(manga.source)}`);
+                navigate(`/manga?url=${encodeURIComponent(manga.url)}&source=${encodeURIComponent(manga.source)}`, {
+                  state: { from: `${location.pathname}${location.search}` },
+                });
               }}
             />
           ) : (

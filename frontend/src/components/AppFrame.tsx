@@ -330,33 +330,6 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
             bgcolor: 'background.paper',
           }}
         >
-          {!isTablet && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.85, fontSize: '0.78rem' }}>
-              Keep `Classic` for reading. Switch to `IDE` when you want denser tools.
-            </Typography>
-          )}
-          <ToggleButtonGroup
-            exclusive
-            fullWidth
-            value={uiMode}
-            onChange={(_event, nextMode) => {
-              if (nextMode) {
-                setUiMode(nextMode);
-              }
-            }}
-            size="small"
-            sx={{
-              width: '100%',
-              '& .MuiToggleButton-root': {
-                minHeight: 34,
-                px: 1,
-                fontSize: '0.78rem',
-              },
-            }}
-          >
-            <ToggleButton value="classic">Classic</ToggleButton>
-            <ToggleButton value="mangaide">IDE</ToggleButton>
-          </ToggleButtonGroup>
         </Box>
       </Box>
     </Box>
@@ -415,7 +388,7 @@ export default function AppFrame({ children }: { children: React.ReactNode }) {
                   fontSize: '0.68rem',
                 }}
               >
-                {uiMode === 'classic' ? 'Classic' : 'IDE'}
+                {'IDE'}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                 <Typography

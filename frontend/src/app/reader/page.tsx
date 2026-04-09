@@ -44,7 +44,7 @@ function PageImage({
   index,
   mode,
   source,
-  zoomMode = "fit-width",
+  zoomMode = "fit-height",
   customZoom = 100,
   contentMode = "manga",
 }: {
@@ -224,7 +224,7 @@ export default function ReaderPage() {
   const [showControls, setShowControls] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [immersive, setImmersive] = useState(false);
-  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-width");
+  const [zoomMode, setZoomMode] = useState<ZoomMode>("fit-height");
   const [customZoom, setCustomZoom] = useState(100);
   const [contentMode, setContentMode] = useState<ContentMode>("manga");
   const [filters, setFilters] = useState({
@@ -1046,7 +1046,7 @@ export default function ReaderPage() {
                 {manga?.title}
               </Typography>
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Chapter {chapter?.number} â€¢ Page {idx + 1} / {pages.length}
+                Chapter {chapter?.number} Page {idx + 1} / {pages.length}
               </Typography>
             </Box>
           </Box>
@@ -1246,40 +1246,40 @@ export default function ReaderPage() {
               contentMode={contentMode}
             />
 
-            <Paper
-              sx={{
-                position: "absolute",
-                bottom: { xs: 72, sm: 78 },
-                left: "50%",
-                transform: "translateX(-50%)",
-                px: 2,
-                py: 0.6,
-                bgcolor: "rgba(17,24,39,0.85)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid rgba(255,255,255,0.10)",
-                borderRadius: "999px",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-                zIndex: 40,
-                maxWidth: "calc(100% - 32px)",
-              }}
-            >
-              <Typography
-                variant="caption"
+            {(idx >= pages.length - 1 && data?.next_slug) || (idx === 0 && data?.prev_slug) ? (
+              <Paper
                 sx={{
-                  fontWeight: 900,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  display: "block",
+                  position: "absolute",
+                  bottom: { xs: 72, sm: 78 },
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  px: 2,
+                  py: 0.6,
+                  bgcolor: "rgba(17,24,39,0.85)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  borderRadius: "999px",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+                  zIndex: 40,
+                  maxWidth: "calc(100% - 32px)",
                 }}
               >
-                {idx >= pages.length - 1 && data?.next_slug
-                  ? "Last Page â€” Click Right for Next Chapter"
-                  : idx === 0 && data?.prev_slug
-                  ? "First Page â€” Click Left for Previous Chapter"
-                  : `Page ${idx + 1} / ${pages.length}`}
-              </Typography>
-            </Paper>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 900,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    display: "block",
+                  }}
+                >
+                  {idx >= pages.length - 1 && data?.next_slug
+                    ? "Last Page Click Right for Next Chapter"
+                    : "First Page Click Left for Previous Chapter"}
+                </Typography>
+              </Paper>
+            ) : null}
 
             <Paper
               elevation={0}
