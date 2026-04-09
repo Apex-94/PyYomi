@@ -10,7 +10,7 @@ const isAbsolutePath = (value: string): boolean =>
   value.trim().length > 0 && (/^[a-zA-Z]:[\\/]/.test(value) || value.startsWith('/'));
 
 export default function SettingsPage() {
-  const { setUiMode, mode, setMode } = useColorMode();
+  const { setMode } = useColorMode();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['app-settings'],
     queryFn: getAppSettings,
@@ -24,7 +24,6 @@ export default function SettingsPage() {
   const [cacheEnabled, setCacheEnabled] = useState('true');
   const [cacheMaxBytes, setCacheMaxBytes] = useState('536870912');
   const [cacheTtlHours, setCacheTtlHours] = useState('720');
-  const [uiMode, setUIMode] = useState<'classic' | 'mangaide'>('mangaide');
   const [colorMode, setColorMode] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -38,11 +37,9 @@ export default function SettingsPage() {
     setCacheEnabled(getStr('images.cache.enabled', true));
     setCacheMaxBytes(getStr('images.cache.max_bytes', 536870912));
     setCacheTtlHours(getStr('images.cache.ttl_hours', 720));
-    const rawUiMode = getStr('ui.mode', 'mangaide');
-    setUIMode(rawUiMode === 'classic' ? 'classic' : 'mangaide');
-    const rawColorMode = getStr('ui.color_mode', mode);
+    const rawColorMode = getStr('ui.color_mode', 'light');
     setColorMode(rawColorMode === 'dark' ? 'dark' : 'light');
-  }, [data, mode]);
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -58,12 +55,11 @@ export default function SettingsPage() {
         updateAppSetting('images.cache.enabled', cacheEnabled === 'true'),
         updateAppSetting('images.cache.max_bytes', Number(cacheMaxBytes)),
         updateAppSetting('images.cache.ttl_hours', Number(cacheTtlHours)),
-        updateAppSetting('ui.mode', uiMode),
+        updateAppSetting('ui.mode', 'mangaide'),
         updateAppSetting('ui.color_mode', colorMode),
       ]);
     },
     onSuccess: async () => {
-      setUiMode(uiMode);
       setMode(colorMode);
       await refetch();
     },
@@ -100,40 +96,6 @@ export default function SettingsPage() {
             <Stack spacing={2.25}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
-                  Interface Mode
-                </Typography>
-                <ToggleButtonGroup
-                  exclusive
-                  value={uiMode}
-                  onChange={(_event, nextValue) => {
-                    if (nextValue) {
-                      setUIMode(nextValue);
-                    }
-                  }}
-                  fullWidth
-                  sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1, background: 'transparent', p: 0 }}
-                >
-                  <ToggleButton value="classic" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, justifyContent: 'flex-start', textAlign: 'left' }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 800 }}>Classic</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Premium, reader-first layout with room to breathe.
-                      </Typography>
-                    </Box>
-                  </ToggleButton>
-                  <ToggleButton value="mangaide" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, px: 2, py: 1.5, justifyContent: 'flex-start', textAlign: 'left' }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 800 }}>IDE</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Dense desktop workspace with explorer and preview panes.
-                      </Typography>
-                    </Box>
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
                   Color Mode
                 </Typography>
                 <ToggleButtonGroup
@@ -154,101 +116,118 @@ export default function SettingsPage() {
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Box>
+            </Stack>
 
-              {saveMutation.isSuccess && <Alert severity="success">Settings saved. Your reading environment is updated.</Alert>}
-              {saveMutation.isError && <Alert severity="error">Couldn&apos;t save these settings. Check the invalid field and try again.</Alert>}
+            {saveMutation.isSuccess && <Alert severity="success">Settings saved. Your reading environment is updated.</Alert>}
+            {saveMutation.isError && <Alert severity="error">Couldn't save these settings. Check the invalid field and try again.</Alert>}
 
-              <Divider />
+            <Divider />
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Reader and Downloads
-              </Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+              Reader and Downloads
+            </Typography>
 
+            <TextField
+              label="Max Concurrent Downloads"
+              type="number"
+              value={downloadConcurrency}
+              onChange={(e) => setDownloadConcurrency(e.target.value)}
+              inputProps={{ min: 1, max: 10 }}
+            />
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+            >
               <TextField
-                label="Max Concurrent Downloads"
-                type="number"
-                value={downloadConcurrency}
-                onChange={(e) => setDownloadConcurrency(e.target.value)}
-                inputProps={{ min: 1, max: 10 }}
+                label="Download Path"
+                value={downloadPath}
+                onChange={(e) => setDownloadPath(e.target.value)}
+                fullWidth
+                error={downloadPath.length > 0 && !isAbsolutePath(downloadPath)}
+                helperText={downloadPath.length > 0 && !isAbsolutePath(downloadPath) ? 'Use an absolute path.' : 'Downloads are saved as /path/<manga>/<chapter>/<pages>.'}
               />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <TextField
-                  label="Download Path"
-                  value={downloadPath}
-                  onChange={(e) => setDownloadPath(e.target.value)}
-                  fullWidth
-                  error={downloadPath.length > 0 && !isAbsolutePath(downloadPath)}
-                  helperText={downloadPath.length > 0 && !isAbsolutePath(downloadPath) ? 'Use an absolute path.' : 'Downloads are saved as /path/<manga>/<chapter>/<pages>.'}
-                />
-                {canUseNativePicker && (
-                  <Button
-                    variant="outlined"
-                    onClick={async () => {
-                      const selected = await window.electronAPI!.selectDownloadPath!();
-                      if (selected) {
-                        setDownloadPath(selected);
-                      }
-                    }}
-                  >
-                    Browse...
-                  </Button>
-                )}
-              </Stack>
-              <TextField
-                label="Update Check Interval (minutes)"
-                type="number"
-                value={updateInterval}
-                onChange={(e) => setUpdateInterval(e.target.value)}
-                inputProps={{ min: 5, max: 1440 }}
-              />
-              <TextField
-                label="Image Cache Enabled"
-                select
-                value={cacheEnabled}
-                onChange={(e) => setCacheEnabled(e.target.value)}
+              {canUseNativePicker && (
+                <Button
+                  variant="outlined"
+                  onClick={async () => {
+                    const selected = await window.electronAPI!.selectDownloadPath!();
+                    if (selected) {
+                      setDownloadPath(selected);
+                    }
+                  }}
+                  sx={{
+                    minWidth: 120,
+                    minHeight: 56,
+                    whiteSpace: 'nowrap',
+                    alignSelf: { xs: 'stretch', sm: 'flex-start' },
+                  }}
+                >
+                  Browse...
+                </Button>
+              )}
+            </Stack>
+            <TextField
+              label="Update Check Interval (minutes)"
+              type="number"
+              value={updateInterval}
+              onChange={(e) => setUpdateInterval(e.target.value)}
+              inputProps={{ min: 5, max: 1440 }}
+            />
+            <TextField
+              label="Image Cache Enabled"
+              select
+              value={cacheEnabled}
+              onChange={(e) => setCacheEnabled(e.target.value)}
+            >
+              <MenuItem value="true">Enabled</MenuItem>
+              <MenuItem value="false">Disabled</MenuItem>
+            </TextField>
+            <TextField
+              label="Image Cache Max Bytes"
+              type="number"
+              value={cacheMaxBytes}
+              onChange={(e) => setCacheMaxBytes(e.target.value)}
+              inputProps={{ min: 0 }}
+            />
+            <TextField
+              label="Image Cache TTL (hours)"
+              type="number"
+              value={cacheTtlHours}
+              onChange={(e) => setCacheTtlHours(e.target.value)}
+              inputProps={{ min: 1 }}
+            />
+            <TextField
+              label="Default Reader Mode"
+              select
+              value={readerMode}
+              onChange={(e) => setReaderMode(e.target.value)}
+              helperText="Choose whether new chapters open one page at a time or as a vertical stack."
+            >
+              <MenuItem value="single">Single page</MenuItem>
+              <MenuItem value="scroll">Vertical scroll</MenuItem>
+            </TextField>
+            <TextField
+              label="Default Reading Direction"
+              select
+              value={readerDirection}
+              onChange={(e) => setReaderDirection(e.target.value)}
+              helperText="Choose how page navigation should advance by default."
+            >
+              <MenuItem value="ltr">Left to right (LTR)</MenuItem>
+              <MenuItem value="rtl">Right to left (RTL)</MenuItem>
+            </TextField>
+
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                sx={{ minWidth: 200, py: 1.25 }}
               >
-                <MenuItem value="true">Enabled</MenuItem>
-                <MenuItem value="false">Disabled</MenuItem>
-              </TextField>
-              <TextField
-                label="Image Cache Max Bytes"
-                type="number"
-                value={cacheMaxBytes}
-                onChange={(e) => setCacheMaxBytes(e.target.value)}
-                inputProps={{ min: 0 }}
-              />
-              <TextField
-                label="Image Cache TTL (hours)"
-                type="number"
-                value={cacheTtlHours}
-                onChange={(e) => setCacheTtlHours(e.target.value)}
-                inputProps={{ min: 1 }}
-              />
-              <TextField
-                label="Default Reader Mode"
-                select
-                value={readerMode}
-                onChange={(e) => setReaderMode(e.target.value)}
-                helperText="Choose whether new chapters open one page at a time or as a vertical stack."
-              >
-                <MenuItem value="single">Single page</MenuItem>
-                <MenuItem value="scroll">Vertical scroll</MenuItem>
-              </TextField>
-              <TextField
-                label="Default Reading Direction"
-                select
-                value={readerDirection}
-                onChange={(e) => setReaderDirection(e.target.value)}
-                helperText="Choose how page navigation should advance by default."
-              >
-                <MenuItem value="ltr">Left to right (LTR)</MenuItem>
-                <MenuItem value="rtl">Right to left (RTL)</MenuItem>
-              </TextField>
-
-              <Button variant="contained" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
                 {saveMutation.isPending ? 'Saving...' : 'Save Reading Setup'}
               </Button>
-            </Stack>
+            </Box>
           </Paper>
 
           <Divider />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { api, addToLibrary, getProxyUrl } from "../../lib/api";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { MangaCard } from "../../components/MangaCard";
@@ -49,6 +49,7 @@ function normalizeStatus(raw?: string | null): "Ongoing" | "Completed" | "Hiatus
 
 export default function BrowsePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setPreview } = useMangaIDEPreview();
   const { uiMode } = useColorMode();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -586,7 +587,9 @@ export default function BrowsePage() {
             onRowDoubleClick={(row) => {
               const item = sortedBrowseItems.find((entry) => entry.url === row.id);
               if (!item) return;
-              navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
+              navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`, {
+                state: { from: `${location.pathname}${location.search}` },
+              });
             }}
           />
         </Box>
