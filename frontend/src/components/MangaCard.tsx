@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Manga } from '../types';
 import { Star, BookOpen, Plus, MoreVertical, Trash2, Check } from 'lucide-react';
 import {
@@ -60,6 +60,7 @@ export const MangaCard: React.FC<MangaCardProps> = ({
   secondaryActions,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const canHover = useMediaQuery('(hover: hover) and (pointer: fine)');
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -102,7 +103,9 @@ export const MangaCard: React.FC<MangaCardProps> = ({
     if (mangaSource) {
       params.set('source', mangaSource);
     }
-    navigate(`/manga?${params.toString()}`);
+    navigate(`/manga?${params.toString()}`, {
+      state: { from: `${location.pathname}${location.search}` },
+    });
   };
 
   const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => {

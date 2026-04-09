@@ -77,8 +77,8 @@ export default function MangaIDEFrame({ children }: { children: React.ReactNode 
           <Typography color="text.secondary" sx={{ mb: 2 }}>
             This UI mode is optimized for 1024px+ screens.
           </Typography>
-          <Button variant="contained" onClick={() => setUiMode('classic')}>
-            Switch to Classic UI
+          <Button variant="contained" onClick={() => setUiMode('mangaide')}>
+            Switch to IDE
           </Button>
         </Paper>
       </Box>

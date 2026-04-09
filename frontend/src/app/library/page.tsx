@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api, getProxyUrl } from "../../lib/api";
 import { BookOpen } from "lucide-react";
 import {
@@ -57,6 +57,7 @@ function toManga(item: LibraryItem, meta?: { author?: string; status?: string; d
 export default function LibraryPage() {
   const ITEMS_PER_PAGE = 24;
   const navigate = useNavigate();
+  const location = useLocation();
   const { uiMode } = useColorMode();
   const { setPreview } = useMangaIDEPreview();
   const { libraryQuery, removeByUrl } = useLibraryState();
@@ -298,7 +299,9 @@ export default function LibraryPage() {
               onRowDoubleClick={(row) => {
                 const item = paginatedData.find((entry) => entry.url === row.id);
                 if (!item) return;
-                navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`);
+                navigate(`/manga?url=${encodeURIComponent(item.url)}&source=${encodeURIComponent(item.source)}`, {
+                  state: { from: `${location.pathname}${location.search}` },
+                });
               }}
             />
           )}

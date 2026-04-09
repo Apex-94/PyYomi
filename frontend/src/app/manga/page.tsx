@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { api, getAniListMetadata, getProxyUrl, queueDownload, addToLibrary, deleteDownloadFiles, getDownloads, getTrackerMappings, syncToTracker, getChaptersReadStatus, markChapterReadByManga, markChapterUnreadByUrl } from "../../lib/api";
 import { summarizeManga } from "../../services/geminiService";
-import { Sparkles, BookOpen, Clock, PenTool, User, Check, Plus, MoreVertical, RefreshCw as SyncIcon, Link as LinkIcon, CheckCircle } from "lucide-react";
+import { Sparkles, BookOpen, Clock, PenTool, User, Check, Plus, MoreVertical, RefreshCw as SyncIcon, Link as LinkIcon, CheckCircle, ArrowLeft } from "lucide-react";
 import { LibraryAddResponse, Manga } from "../../types";
 import TrackerMappingDialog from "../../components/TrackerMappingDialog";
 import {
@@ -46,6 +46,10 @@ interface Chapter {
     chapter_number: number | null;
 }
 
+type MangaPageState = {
+    from?: string;
+};
+
 // Helper to format chapter title in a consistent way
 const CHAPTER_INDICATOR_PATTERN = /^(C\.?|Ch\.?\s*|Chapter\s*)\d+(?:\.\d+)?$/i;
 
@@ -80,6 +84,7 @@ const formatChapterTitle = (title: string, chapterNumber: number | null): string
 export default function MangaPage() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const url = searchParams.get("url");
     const source = searchParams.get("source");
@@ -98,6 +103,7 @@ export default function MangaPage() {
     // Context menu state for chapter read/unread marking
     const [contextMenuAnchor, setContextMenuAnchor] = useState<null | HTMLElement>(null);
     const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+    const origin = (location.state as MangaPageState | null)?.from;
     
     const queueMutation = useMutation({
         mutationFn: queueDownload,
@@ -312,6 +318,31 @@ export default function MangaPage() {
         setGeneratingSummary(false);
     };
 
+    const handleBack = () => {
+        if (origin) {
+            navigate(origin);
+            return;
+        }
+        navigate('/browse');
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!(event.altKey && event.key === 'ArrowLeft')) return;
+
+            const target = event.target;
+            if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) {
+                return;
+            }
+
+            event.preventDefault();
+            handleBack();
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [origin, navigate]);
+
     if (!url) return <Box sx={{ p: 3 }}>No manga URL provided.</Box>;
     if (loadingDetails) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress color="primary" /></Box>;
     if (!details) return <Box sx={{ p: 3 }}>Failed to load details.</Box>;
@@ -325,6 +356,19 @@ export default function MangaPage() {
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                <Tooltip title="Back to previous page (Alt + Left Arrow)">
+                    <Button
+                        variant="outlined"
+                        startIcon={<ArrowLeft size={16} />}
+                        onClick={handleBack}
+                        sx={{ minHeight: 40 }}
+                    >
+                        Back
+                    </Button>
+                </Tooltip>
+            </Box>
+
             {/* Backdrop */}
             {!backdropError && (
                 <Box sx={{
