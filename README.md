@@ -9,6 +9,22 @@ This app is designed for:
 - Downloading chapters for offline reading
 - Managing download paths and cache settings
 
+## Screenshots
+
+<p align="center">
+  <b>Library View</b><br>
+  <img src="./docs/screenshots/Favorites2.png" width="90%" alt="Library View" />
+</p>
+
+<br>
+
+<p align="center">
+  <b>Settings Panel</b><br>
+  <img src="./docs/screenshots/settings.png" width="90%" alt="Settings Panel" />
+</p>
+
+<br>
+
 ## What You Can Do
 
 - Browse latest/popular/search manga from active source
